@@ -277,6 +277,9 @@ namespace {
     if (auto flipY = widgetTable["flip_y"].value<bool>()) {
       widget.flipY = *flipY;
     }
+    if (auto ignoreWallpaperMask = widgetTable["ignore_wallpaper_mask"].value<bool>()) {
+      widget.ignoreWallpaperMask = *ignoreWallpaperMask;
+    }
     if (auto enabled = widgetTable["enabled"].value<bool>()) {
       widget.enabled = *enabled;
     }

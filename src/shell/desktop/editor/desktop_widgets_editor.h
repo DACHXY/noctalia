@@ -178,6 +178,7 @@ private:
   void bringSelectedWidgetToFront();
   void flipSelectedWidgetHorizontal();
   void flipSelectedWidgetVertical();
+  void toggleSelectedWidgetWallpaperMask();
   void cloneSelectedWidgets();
   void copySelectedWidgets();
   void pasteWidgets();

@@ -128,6 +128,7 @@ namespace {
         && a.rotationRad == b.rotationRad
         && a.flipX == b.flipX
         && a.flipY == b.flipY
+        && a.ignoreWallpaperMask == b.ignoreWallpaperMask
         && a.enabled == b.enabled
         && widgetSettingsEqual(a.settings, b.settings);
   }
@@ -477,6 +478,9 @@ namespace {
     }
     if (widget.flipY) {
       widgetTable.insert_or_assign("flip_y", true);
+    }
+    if (widget.ignoreWallpaperMask) {
+      widgetTable.insert_or_assign("ignore_wallpaper_mask", true);
     }
     if (!widget.enabled) {
       widgetTable.insert_or_assign("enabled", false);

@@ -1076,6 +1076,7 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
 
   const bool selectedFlipX = hasSelectedWidget && selectedWidgetIt->flipX;
   const bool selectedFlipY = hasSelectedWidget && selectedWidgetIt->flipY;
+  const bool selectedIgnoresWallpaperMask = hasSelectedWidget && selectedWidgetIt->ignoreWallpaperMask;
 
   const bool canCloneSelected = hasSelectedWidget
       && !selectedIsLoginBox
@@ -1203,6 +1204,16 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                       .variant = ButtonVariant::Default,
                       .tooltip = i18n::tr("desktop-widgets.editor.actions.flip-vertical"),
                       .onClick = [this] { deferEditorMutation([this] { flipSelectedWidgetVertical(); }); },
+                  }),
+                  ui::button({
+                      .glyph = "layers-subtract",
+                      .enabled = hasSelectedWidget,
+                      .selected = selectedIgnoresWallpaperMask,
+                      .variant = ButtonVariant::Default,
+                      .tooltip = i18n::tr("desktop-widgets.editor.actions.ignore-wallpaper-mask"),
+                      .visible = m_profile.supportsWallpaperMask,
+                      .participatesInLayout = m_profile.supportsWallpaperMask,
+                      .onClick = [this] { deferEditorMutation([this] { toggleSelectedWidgetWallpaperMask(); }); },
                   }),
                   ui::button(
                       {
@@ -1718,6 +1729,18 @@ void DesktopWidgetsEditor::flipSelectedWidgetVertical() {
     state->flipY = !state->flipY;
   }
   updateViewTransforms();
+  requestLayout();
+}
+
+void DesktopWidgetsEditor::toggleSelectedWidgetWallpaperMask() {
+  if (m_selectedWidgetIds.empty()) {
+    return;
+  }
+  for (const std::string& id : m_selectedWidgetIds) {
+    if (DesktopWidgetState* state = findWidgetState(id); state != nullptr) {
+      state->ignoreWallpaperMask = !state->ignoreWallpaperMask;
+    }
+  }
   requestLayout();
 }
 

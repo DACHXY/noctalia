@@ -453,7 +453,8 @@ void DesktopWidgetsHost::updateWallpaperMask(DesktopWidgetInstance& instance) {
 
   const auto maskIt = m_wallpaperMasks.find(instance.effectiveOutputName);
   const WaylandOutput* output = desktop_widgets::findOutputByKey(*m_wayland, instance.effectiveOutputName);
-  if (maskIt == m_wallpaperMasks.end()
+  if (instance.state.ignoreWallpaperMask
+      || maskIt == m_wallpaperMasks.end()
       || !maskIt->second.validated
       || output == nullptr
       || m_config->getWallpaperPath(instance.effectiveOutputName) != maskIt->second.descriptor.wallpaperPath) {

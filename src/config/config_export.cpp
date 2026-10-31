@@ -306,6 +306,9 @@ namespace config_export {
           if (widget.flipY) {
             item.insert_or_assign("flip_y", true);
           }
+          if (widget.ignoreWallpaperMask) {
+            item.insert_or_assign("ignore_wallpaper_mask", true);
+          }
           item.insert_or_assign("enabled", widget.enabled);
 
           toml::table settings;

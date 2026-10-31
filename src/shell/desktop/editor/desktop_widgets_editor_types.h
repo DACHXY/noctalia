@@ -13,6 +13,7 @@ struct DesktopWidgetsEditorProfile {
   std::string_view widgetIdPrefix;
   std::string_view titleKey;
   bool showLockscreenLoginPreview = false;
+  bool supportsWallpaperMask = false;
 
   [[nodiscard]] static DesktopWidgetsEditorProfile desktop();
   [[nodiscard]] static DesktopWidgetsEditorProfile lockscreen();

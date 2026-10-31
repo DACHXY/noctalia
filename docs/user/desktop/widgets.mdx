@@ -103,18 +103,19 @@ format = "{:%H:%M}"
 
 ### Per-widget fields
 
-| Field        | Type   | Default    | Description                                                                                           |
-| ------------ | ------ | ---------- | ----------------------------------------------------------------------------------------------------- |
-| Table key    | string | (required) | Unique widget identifier (`clock_main` in `[desktop_widgets.widget.clock_main]`)                      |
-| `type`       | string | (required) | Widget type (`clock`, `weather`, `media_player`, etc.)                                                |
-| `output`     | string | -          | Exact connector name (e.g. `"DP-1"`) or a unique monitor description, make, model, or serial selector |
-| `cx`, `cy`   | float  | -          | Center position in logical pixels                                                                     |
-| `box_width`  | float  | `0.0`      | Widget box width in logical pixels; `0.0` auto-fits the content                                       |
-| `box_height` | float  | `0.0`      | Widget box height in logical pixels; `0.0` auto-fits the content                                      |
-| `rotation`   | float  | `0.0`      | Rotation in radians                                                                                   |
-| `flip_x`     | bool   | `false`    | Mirror the widget horizontally around its center                                                      |
-| `flip_y`     | bool   | `false`    | Mirror the widget vertically around its center                                                        |
-| `enabled`    | bool   | `true`     | Set to `false` to temporarily hide a widget without removing it                                       |
+| Field                   | Type   | Default    | Description                                                                                           |
+| ----------------------- | ------ | ---------- | ----------------------------------------------------------------------------------------------------- |
+| Table key               | string | (required) | Unique widget identifier (`clock_main` in `[desktop_widgets.widget.clock_main]`)                      |
+| `type`                  | string | (required) | Widget type (`clock`, `weather`, `media_player`, etc.)                                                |
+| `output`                | string | -          | Exact connector name (e.g. `"DP-1"`) or a unique monitor description, make, model, or serial selector |
+| `cx`, `cy`              | float  | -          | Center position in logical pixels                                                                     |
+| `box_width`             | float  | `0.0`      | Widget box width in logical pixels; `0.0` auto-fits the content                                       |
+| `box_height`            | float  | `0.0`      | Widget box height in logical pixels; `0.0` auto-fits the content                                      |
+| `rotation`              | float  | `0.0`      | Rotation in radians                                                                                   |
+| `flip_x`                | bool   | `false`    | Mirror the widget horizontally around its center                                                      |
+| `flip_y`                | bool   | `false`    | Mirror the widget vertically around its center                                                        |
+| `ignore_wallpaper_mask` | bool   | `false`    | Keep the widget above wallpaper foreground masks set by plugins such as Wallpaper Depth               |
+| `enabled`               | bool   | `true`     | Set to `false` to temporarily hide a widget without removing it                                       |
 
 ```toml
 [desktop_widgets.widget.clock_main]

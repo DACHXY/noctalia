@@ -7,6 +7,7 @@ DesktopWidgetsEditorProfile DesktopWidgetsEditorProfile::desktop() {
       .widgetIdPrefix = "desktop-widget-",
       .titleKey = "desktop-widgets.editor.title",
       .showLockscreenLoginPreview = false,
+      .supportsWallpaperMask = true,
   };
 }
 
@@ -17,5 +18,6 @@ DesktopWidgetsEditorProfile DesktopWidgetsEditorProfile::lockscreen() {
       .widgetIdPrefix = "lockscreen-widget-",
       .titleKey = "desktop-widgets.editor.title-lockscreen",
       .showLockscreenLoginPreview = true,
+      .supportsWallpaperMask = false,
   };
 }

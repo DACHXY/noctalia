@@ -798,6 +798,8 @@ struct DesktopWidgetState {
   float rotationRad = 0.0F;
   bool flipX = false;
   bool flipY = false;
+  // Desktop only: keep the widget above wallpaper occlusion masks set by plugins.
+  bool ignoreWallpaperMask = false;
   bool enabled = true;
   std::unordered_map<std::string, WidgetSettingValue> settings;
 

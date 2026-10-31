@@ -599,6 +599,7 @@
         "flip-horizontal": "Flip Horizontal",
         "flip-vertical": "Flip Vertical",
         "hide": "Hide",
+        "ignore-wallpaper-mask": "Keep Above Wallpaper Foreground",
         "settings": "Settings",
         "show": "Show",
         "stack-back": "Stack Behind",
