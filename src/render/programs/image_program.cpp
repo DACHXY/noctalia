@@ -51,7 +51,7 @@ void main() {
     vec2 offset = (vec2(1.0) - scale) * 0.5;
     v_texcoord = offset + a_texcoord * scale;
     v_local = local;
-    gl_Position = vec4(to_ndc(pixel.xy), 0.0, 1.0);
+    gl_Position = vec4(to_ndc(pixel.xy / pixel.z) * pixel.z, 0.0, pixel.z);
 }
 )";
 

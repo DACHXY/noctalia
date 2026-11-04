@@ -27,7 +27,7 @@ void main() {
     vec2 local = a_position * u_quad_size;
     vec3 pixel = u_transform * vec3(local, 1.0);
     v_pixel = local - u_rect_origin;
-    gl_Position = vec4(to_ndc(pixel.xy), 0.0, 1.0);
+    gl_Position = vec4(to_ndc(pixel.xy / pixel.z) * pixel.z, 0.0, pixel.z);
 }
 )";
 

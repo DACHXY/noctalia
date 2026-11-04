@@ -16,6 +16,7 @@ namespace {
     return Mat3::translation(node->x(), node->y())
         * Mat3::translation(cx, cy)
         * Mat3::rotation(node->rotation())
+        * Mat3::tiltProjection(node->tiltX(), node->tiltY(), tiltPerspectiveDistance(node->width(), node->height()))
         * Mat3::scale(node->scaleX(), node->scaleY())
         * Mat3::translation(-cx, -cy);
   }
@@ -227,6 +228,15 @@ void Node::setRotation(float radians) {
     return;
   }
   m_rotation = radians;
+  markPaintDirty();
+}
+
+void Node::setTilt(float tiltX, float tiltY) {
+  if (m_tiltX == tiltX && m_tiltY == tiltY) {
+    return;
+  }
+  m_tiltX = tiltX;
+  m_tiltY = tiltY;
   markPaintDirty();
 }
 

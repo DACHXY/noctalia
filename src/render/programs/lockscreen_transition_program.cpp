@@ -22,7 +22,7 @@ vec2 to_ndc(vec2 pixel_pos) {
 void main() {
     v_texcoord = a_position;
     vec3 pixel = u_transform * vec3(a_position * u_quad_size, 1.0);
-    gl_Position = vec4(to_ndc(pixel.xy), 0.0, 1.0);
+    gl_Position = vec4(to_ndc(pixel.xy / pixel.z) * pixel.z, 0.0, pixel.z);
 }
 )";
 

@@ -91,6 +91,8 @@ public:
   [[nodiscard]] float width() const noexcept { return m_width; }
   [[nodiscard]] float height() const noexcept { return m_height; }
   [[nodiscard]] float rotation() const noexcept { return m_rotation; }
+  [[nodiscard]] float tiltX() const noexcept { return m_tiltX; }
+  [[nodiscard]] float tiltY() const noexcept { return m_tiltY; }
   [[nodiscard]] float scale() const noexcept { return m_scaleX; }
   [[nodiscard]] float scaleX() const noexcept { return m_scaleX; }
   [[nodiscard]] float scaleY() const noexcept { return m_scaleY; }
@@ -120,6 +122,7 @@ public:
   virtual void setSize(float width, float height);
   void setFrameSize(float width, float height);
   void setRotation(float radians);
+  void setTilt(float tiltX, float tiltY);
   void setScale(float scale);
   void setScale(float scaleX, float scaleY);
   void setTransformOrigin(float x, float y);
@@ -198,6 +201,8 @@ private:
   float m_width = 0.0F;
   float m_height = 0.0F;
   float m_rotation = 0.0F;
+  float m_tiltX = 0.0F;
+  float m_tiltY = 0.0F;
   float m_scaleX = 1.0F;
   float m_scaleY = 1.0F;
   float m_transformOriginX = 0.0F;

@@ -33,7 +33,7 @@ void main() {
         pixel.xy = floor(pixel.xy * u_pixel_scale + 0.5) / u_pixel_scale;
     }
     v_color = a_color;
-    gl_Position = vec4(to_ndc(pixel.xy), 0.0, 1.0);
+    gl_Position = vec4(to_ndc(pixel.xy / pixel.z) * pixel.z, 0.0, pixel.z);
 }
 )";
 
@@ -357,7 +357,10 @@ void AudioSpectrumProgram::draw(
   glUseProgram(m_program.id());
   glUniform2f(m_surfaceSizeLocation, surfaceWidth, surfaceHeight);
   glUniform2f(m_pixelScaleLocation, safePixelScaleX, safePixelScaleY);
-  const bool canSnapToDevice = !compactBars && std::abs(transform.m[1]) < 0.0001F && std::abs(transform.m[3]) < 0.0001F;
+  // Device snapping only holds for a scale+translate transform: a tilt's perspective divide would
+  // snap pre-divide coordinates.
+  const bool canSnapToDevice =
+      !compactBars && transform.isAffine() && std::abs(transform.m[1]) < 0.0001F && std::abs(transform.m[3]) < 0.0001F;
   glUniform1f(m_snapToDeviceLocation, canSnapToDevice ? 1.0F : 0.0F);
   glUniformMatrix3fv(m_transformLocation, 1, GL_FALSE, transform.m.data());
 

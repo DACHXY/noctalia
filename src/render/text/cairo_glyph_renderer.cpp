@@ -28,7 +28,11 @@ namespace {
   }
 
   bool isAxisAligned(const Mat3& transform) {
-    return std::abs(transform.m[1]) <= kAxisAlignedEpsilon && std::abs(transform.m[3]) <= kAxisAlignedEpsilon;
+    // Tilt makes the transform projective; snapping its translation (or the rotated corner
+    // geometry) would no longer line up with the perspective divide done by the shaders.
+    return transform.isAffine()
+        && std::abs(transform.m[1]) <= kAxisAlignedEpsilon
+        && std::abs(transform.m[3]) <= kAxisAlignedEpsilon;
   }
 
   float snapToBufferPixel(float value, float scale) {
