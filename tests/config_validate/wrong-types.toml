@@ -10,3 +10,8 @@ kinds = 3
 
 [desktop_widgets]
 enabled = "no"
+
+[desktop_widgets.widget.tilted]
+type = "clock"
+tilt_x = "x"
+tilt_y = 12

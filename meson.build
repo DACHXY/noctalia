@@ -1271,6 +1271,7 @@ if build_tests
     'desktop_entry_symlink',
     'desktop_entry_watch',
     'desktop_widget_output',
+    'desktop_widget_tilt',
     'disk_mounts',
     'dock_edge_overlap',
     'dock_pinned_apps',

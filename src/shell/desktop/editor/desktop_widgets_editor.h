@@ -69,6 +69,7 @@ private:
     Move,
     Scale,
     Rotate,
+    Tilt,
     Lasso,
     ToolbarMove,
     InspectorMove,
@@ -150,6 +151,10 @@ private:
     std::string moveSourceOutputName;
     float movePointerOffsetX = 0.0F;
     float movePointerOffsetY = 0.0F;
+    // Offset between the pointer and the grabbed scale corner, in the widget's un-rotated frame.
+    // Keeps a resize that starts on a tilted (projected) corner from jumping on the first move.
+    float scaleGrabOffsetX = 0.0F;
+    float scaleGrabOffsetY = 0.0F;
     float initialToolbarX = 0.0F;
     float initialToolbarY = 0.0F;
     float initialInspectorX = 0.0F;

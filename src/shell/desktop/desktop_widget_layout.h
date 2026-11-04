@@ -147,8 +147,8 @@ namespace desktop_widgets {
       return nullptr;
     }
     const WidgetTransformClampResult clamped = clampWidgetCenterToOutput(
-        state.cx, state.cy, intrinsicWidth, intrinsicHeight, 1.0F, state.rotationRad, outputLogicalWidth(*output),
-        outputLogicalHeight(*output), kDesktopWidgetMinVisibleFraction
+        state.cx, state.cy, intrinsicWidth, intrinsicHeight, 1.0F, state.rotationRad, state.tiltX, state.tiltY,
+        outputLogicalWidth(*output), outputLogicalHeight(*output), kDesktopWidgetMinVisibleFraction
     );
     state.cx = clamped.cx;
     state.cy = clamped.cy;

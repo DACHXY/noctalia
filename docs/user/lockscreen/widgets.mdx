@@ -24,6 +24,8 @@ cy         = 120.0
 box_width  = 360.0
 box_height = 120.0
 rotation   = 0.0
+tilt_x     = 0.0
+tilt_y     = 0.0
 
 [lockscreen_widgets.widget.clock_main.settings]
 format = "{:%H:%M}"
@@ -53,7 +55,7 @@ Same interaction model as desktop widget edit mode (move, rotate, resize, grid s
 
 ## Config format
 
-The schema mirrors `[desktop_widgets]`: `enabled`, `schema_version`, optional `[lockscreen_widgets.grid]`, `widget_order`, and `[lockscreen_widgets.widget.<id>]` tables with `type`, `output`, `cx`, `cy`, `box_width`, `box_height`, `rotation`, `enabled`, and `[lockscreen_widgets.widget.<id>.settings]`.
+The schema mirrors `[desktop_widgets]`: `enabled`, `schema_version`, optional `[lockscreen_widgets.grid]`, `widget_order`, and `[lockscreen_widgets.widget.<id>]` tables with `type`, `output`, `cx`, `cy`, `box_width`, `box_height`, `rotation`, `tilt_x`, `tilt_y`, `enabled`, and `[lockscreen_widgets.widget.<id>.settings]`.
 
 `output` accepts an exact connector name or a unique monitor description, make, model, or serial selector, with the same case-sensitive, whole-token matching as bar and dock overrides. See [Desktop widgets - Monitor matching](/noctalia/desktop/widgets/#monitor-matching). The selector stays in the saved configuration when connectors change, so placement follows the matching monitor. Selectors matching multiple monitors are inactive and logged as warnings; use a more specific description or serial.
 

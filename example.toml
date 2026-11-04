@@ -519,6 +519,8 @@ enabled = false
 # cy       = 540.0
 # scale    = 1.5
 # rotation = 0.0
+# tilt_x   = 0.0  # tilt around the horizontal axis in radians, clamped to +/-1.396 (+/-80deg)
+# tilt_y   = 0.0  # tilt around the vertical axis in radians, clamped to +/-1.396 (+/-80deg)
 
 # [desktop_widgets.widget.clock_main.settings]
 # format = "{:%H:%M}"
@@ -535,6 +537,8 @@ enabled = false
 # cy       = 120.0
 # scale    = 1.5
 # rotation = 0.0
+# tilt_x   = 0.0  # tilt around the horizontal axis in radians, clamped to +/-1.396 (+/-80deg)
+# tilt_y   = 0.0  # tilt around the vertical axis in radians, clamped to +/-1.396 (+/-80deg)
 
 # [lockscreen_widgets.widget.clock_main.settings]
 # format = "{:%H:%M}"

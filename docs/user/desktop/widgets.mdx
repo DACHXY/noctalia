@@ -24,6 +24,8 @@ cy       = 540.0
 box_width  = 0.0
 box_height = 0.0
 rotation = 0.0
+tilt_x   = 0.0
+tilt_y   = 0.0
 flip_x   = false
 flip_y   = false
 
@@ -58,6 +60,8 @@ Widget previews are non-interactive in edit mode. Clicking anywhere within a wid
 | `Ctrl` + click widget                      | Add/remove that widget from the selection                         |
 | `Ctrl` + lasso                             | Add intersecting widgets to the current selection                 |
 | Drag outer selection ring                  | Rotate (rotates and orbits the whole multi-selection)             |
+| `Ctrl` + drag outer selection ring         | Tilt (tilts each selected widget in place around its own centre)  |
+| `Ctrl` + right-click outer selection ring  | Reset tilt to 0 (rotation is kept)                                |
 | Drag corner handles                        | Resize (scales the whole multi-selection about the resize anchor) |
 | Drag toolbar handle                        | Reposition the editor toolbar on that output                      |
 | `G`                                        | Toggle snap grid                                                  |
@@ -68,6 +72,8 @@ Widget previews are non-interactive in edit mode. Clicking anywhere within a wid
 | `Escape` / click `Done`                    | Exit edit mode                                                    |
 
 When the snap grid is active, moving a widget snaps the nearest outer edge or center line to the grid, screen edges, and nearby widgets. Resizing keeps the opposite edge anchored and snaps the dragged edge to the same guides, with a horizontal bias for corner drags so matching widget widths is easier.
+
+Tilt is edited with the outer selection ring: hold `Ctrl` and drag. Horizontal travel tilts around the vertical axis (`tilt_y`), vertical travel tilts around the horizontal axis (`tilt_x`), and the edge under the pointer follows the pointer (dragging down pushes the top edge away from you). The drag is measured in the widget's own frame, so it stays oriented correctly on a rotated widget. Tilt covers 80° per 400 px of travel, snaps to 0.5° steps while the snap grid is active, and is clamped to ±80°.
 
 Primary-colored center guides are always shown in edit mode. Dragging a widget snaps its center to the monitor center when nearby, even if the snap grid is hidden or temporarily disabled with `Shift`.
 
@@ -96,6 +102,8 @@ cy       = 540.0
 box_width  = 0.0
 box_height = 0.0
 rotation = 0.0
+tilt_x   = 0.0
+tilt_y   = 0.0
 
 [desktop_widgets.widget.clock_main.settings]
 format = "{:%H:%M}"
@@ -112,6 +120,8 @@ format = "{:%H:%M}"
 | `box_width`             | float  | `0.0`      | Widget box width in logical pixels; `0.0` auto-fits the content                                       |
 | `box_height`            | float  | `0.0`      | Widget box height in logical pixels; `0.0` auto-fits the content                                      |
 | `rotation`              | float  | `0.0`      | Rotation in radians                                                                                   |
+| `tilt_x`                | float  | `0.0`      | Tilt around the widget's horizontal axis in radians, clamped to ±1.396 (±80°)                         |
+| `tilt_y`                | float  | `0.0`      | Tilt around the widget's vertical axis in radians, clamped to ±1.396 (±80°)                           |
 | `flip_x`                | bool   | `false`    | Mirror the widget horizontally around its center                                                      |
 | `flip_y`                | bool   | `false`    | Mirror the widget vertically around its center                                                        |
 | `ignore_wallpaper_mask` | bool   | `false`    | Keep the widget above wallpaper foreground masks set by plugins such as Wallpaper Depth               |
@@ -180,6 +190,8 @@ cy       = 540.0
 box_width  = 0.0
 box_height = 0.0
 rotation = 0.0
+tilt_x   = 0.0
+tilt_y   = 0.0
 
 [desktop_widgets.widget.clock_main.settings]
 clock_style = "digital"

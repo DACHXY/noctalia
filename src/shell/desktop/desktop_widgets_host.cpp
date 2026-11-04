@@ -337,7 +337,8 @@ void DesktopWidgetsHost::createInstance(const DesktopWidgetState& state, const W
   const float outW = desktop_widgets::outputLogicalWidth(output);
   const float outH = desktop_widgets::outputLogicalHeight(output);
   const WidgetTransformClippedGeometry geometry = computeClippedWidgetSurfaceGeometry(
-      clampedState.cx, clampedState.cy, intrinsicWidth, intrinsicHeight, 1.0F, clampedState.rotationRad, outW, outH
+      clampedState.cx, clampedState.cy, intrinsicWidth, intrinsicHeight, 1.0F, clampedState.rotationRad,
+      clampedState.tiltX, clampedState.tiltY, outW, outH
   );
 
   auto surfaceConfig = LayerSurfaceConfig{
@@ -529,7 +530,7 @@ void DesktopWidgetsHost::prepareFrame(DesktopWidgetInstance& instance, bool need
 
   const WidgetTransformClippedGeometry geometry = computeClippedWidgetSurfaceGeometry(
       instance.state.cx, instance.state.cy, instance.intrinsicWidth, instance.intrinsicHeight, 1.0F,
-      instance.state.rotationRad, outputW, outputH
+      instance.state.rotationRad, instance.state.tiltX, instance.state.tiltY, outputW, outputH
   );
 
   if (instance.surface->width() != geometry.surfaceWidth || instance.surface->height() != geometry.surfaceHeight) {
@@ -550,6 +551,7 @@ void DesktopWidgetsHost::prepareFrame(DesktopWidgetInstance& instance, bool need
         geometry.contentOffsetY - instance.intrinsicHeight * 0.5F
     );
     instance.transformNode->setRotation(instance.state.rotationRad);
+    instance.transformNode->setTilt(instance.state.tiltX, instance.state.tiltY);
     float flipScaleX = 1.0F;
     float flipScaleY = 1.0F;
     desktop_widgets::widgetNodeScale(instance.state, flipScaleX, flipScaleY);
@@ -560,7 +562,9 @@ void DesktopWidgetsHost::prepareFrame(DesktopWidgetInstance& instance, bool need
     instance.surface->requestFrameTick();
   }
 
-  if (instance.widget->hasVisibleBackground()) {
+  // Tilt is a projective transform, so the rotated-rect blur tessellation no longer matches the
+  // widget silhouette. Skip the blur region while tilted rather than blurring the wrong area.
+  if (instance.widget->hasVisibleBackground() && instance.state.tiltX == 0.0F && instance.state.tiltY == 0.0F) {
     const float radius = instance.widget->backgroundRadius();
     auto blurStrips = Surface::tessellateRotatedRoundedRect(
         geometry.contentOffsetX, geometry.contentOffsetY, instance.intrinsicWidth, instance.intrinsicHeight, radius,

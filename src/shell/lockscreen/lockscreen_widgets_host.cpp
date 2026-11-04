@@ -421,6 +421,7 @@ void LockscreenWidgetsHost::prepareFrame(LockSurface& surface, bool needsUpdate,
         instance->state.cx - instance->intrinsicWidth * 0.5F, instance->state.cy - instance->intrinsicHeight * 0.5F
     );
     instance->transformNode->setRotation(instance->state.rotationRad);
+    instance->transformNode->setTilt(instance->state.tiltX, instance->state.tiltY);
     float flipScaleX = 1.0F;
     float flipScaleY = 1.0F;
     desktop_widgets::widgetNodeScale(instance->state, flipScaleX, flipScaleY);

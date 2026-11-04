@@ -578,6 +578,8 @@ namespace noctalia::config {
           Expected{"box_width", isNumber, "a number"},
           Expected{"box_height", isNumber, "a number"},
           Expected{"rotation", isNumber, "a number"},
+          Expected{"tilt_x", isNumber, "a number"},
+          Expected{"tilt_y", isNumber, "a number"},
           Expected{"flip_x", isBool, "a boolean"},
           Expected{"flip_y", isBool, "a boolean"},
           Expected{"ignore_wallpaper_mask", isBool, "a boolean"},
@@ -629,8 +631,22 @@ namespace noctalia::config {
         return;
       }
       static const std::unordered_set<std::string> kWidgetKeys = {
-          "id",        "type",       "output",   "cx",     "cy",     "placement_width",       "placement_height",
-          "box_width", "box_height", "rotation", "flip_x", "flip_y", "ignore_wallpaper_mask", "enabled",
+          "id",
+          "type",
+          "output",
+          "cx",
+          "cy",
+          "placement_width",
+          "placement_height",
+          "box_width",
+          "box_height",
+          "rotation",
+          "tilt_x",
+          "tilt_y",
+          "flip_x",
+          "flip_y",
+          "ignore_wallpaper_mask",
+          "enabled",
           "settings",
       };
       for (const auto& [id, node] : *widgets) {
@@ -714,8 +730,8 @@ namespace noctalia::config {
         return;
       }
       static const std::unordered_set<std::string> kWidgetKeys = {
-          "id",        "type",       "output",   "cx",     "cy",     "placement_width", "placement_height",
-          "box_width", "box_height", "rotation", "flip_x", "flip_y", "enabled",         "settings",
+          "id",         "type",     "output", "cx",     "cy",     "placement_width", "placement_height", "box_width",
+          "box_height", "rotation", "tilt_x", "tilt_y", "flip_x", "flip_y",          "enabled",          "settings",
       };
       for (const auto& [id, node] : *widgets) {
         const auto* tbl = node.as_table();

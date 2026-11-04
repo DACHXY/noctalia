@@ -300,6 +300,12 @@ namespace config_export {
           item.insert_or_assign("box_width", static_cast<double>(widget.boxWidth));
           item.insert_or_assign("box_height", static_cast<double>(widget.boxHeight));
           item.insert_or_assign("rotation", static_cast<double>(widget.rotationRad));
+          if (widget.tiltX != 0.0F) {
+            item.insert_or_assign("tilt_x", static_cast<double>(widget.tiltX));
+          }
+          if (widget.tiltY != 0.0F) {
+            item.insert_or_assign("tilt_y", static_cast<double>(widget.tiltY));
+          }
           if (widget.flipX) {
             item.insert_or_assign("flip_x", true);
           }

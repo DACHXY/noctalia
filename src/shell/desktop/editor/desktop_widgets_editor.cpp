@@ -164,10 +164,15 @@ namespace {
     }
   }
 
-  std::pair<float, float> rotatedCorner(float cx, float cy, float halfWidth, float halfHeight, float rotationRad) {
-    const float cosTheta = std::cos(rotationRad);
-    const float sinTheta = std::sin(rotationRad);
-    return {cx + halfWidth * cosTheta - halfHeight * sinTheta, cy + halfWidth * sinTheta + halfHeight * cosTheta};
+  // Corner of the widget's tilted silhouette, in output space. The handles sit on the projected
+  // (trapezoid) corners so they hug the selection outline at any tilt.
+  std::pair<float, float>
+  projectedCorner(const DesktopWidgetState& state, float width, float height, CornerSigns signs) {
+    const Mat3 transform =
+        widgetContentTransform(state.cx, state.cy, width, height, 1.0F, state.rotationRad, state.tiltX, state.tiltY);
+    const Vec2 corner =
+        transform.transformPoint(width * 0.5F + signs.x * width * 0.5F, height * 0.5F + signs.y * height * 0.5F);
+    return {corner.x, corner.y};
   }
 
   Color lockscreenWallpaperFillColor(const WallpaperConfig& config) {
@@ -848,6 +853,7 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
         widgetState.cx - view.intrinsicWidth * 0.5F, widgetState.cy - view.intrinsicHeight * 0.5F
     );
     view.transformNode->setRotation(widgetState.rotationRad);
+    view.transformNode->setTilt(widgetState.tiltX, widgetState.tiltY);
     {
       float flipScaleX = 1.0F;
       float flipScaleY = 1.0F;
@@ -953,23 +959,54 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
       surface.rotationRing = ring.get();
       surface.selectionFrameTransform->addChild(std::move(ring));
 
+      // Drag rotates, Ctrl+drag tilts, Ctrl+right-click resets tilt (so the ring has to see the
+      // secondary button too).
+      const auto attachRotateHandlers = [this](InputArea& area) {
+        area.setAcceptedButtons(InputArea::buttonMask({BTN_LEFT, BTN_RIGHT}));
+        InputArea* areaPtr = &area;
+        area.setOnPress([this, id = m_selectedWidgetId, areaPtr](const InputArea::PointerData& data) {
+          if (data.button == BTN_RIGHT) {
+            if (data.pressed && m_ctrlHeld && findWidgetState(id) != nullptr) {
+              // Resets the whole selection, matching how a tilt drag moves every selected widget.
+              for (const std::string& selectedId : m_selectedWidgetIds) {
+                if (DesktopWidgetState* selected = findWidgetState(selectedId); selected != nullptr) {
+                  selected->tiltX = 0.0F;
+                  selected->tiltY = 0.0F;
+                }
+              }
+              updateViewTransforms();
+              for (auto& surface : m_surfaces) {
+                if (surface->surface != nullptr) {
+                  surface->surface->requestRedraw();
+                }
+              }
+            }
+            return;
+          }
+          if (data.button != BTN_LEFT) {
+            return;
+          }
+          if (data.pressed) {
+            // Ctrl turns the ring into the tilt dial. Ctrl on the widget body keeps meaning
+            // multi-select, and Alt/Super stay free for the compositor.
+            const DragMode mode = m_ctrlHeld ? DragMode::Tilt : DragMode::Rotate;
+            areaPtr->setCursorShape(mode == DragMode::Tilt ? WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_MOVE : 0);
+            startDrag(mode, id, false);
+          } else if ((m_drag.mode == DragMode::Rotate || m_drag.mode == DragMode::Tilt) && m_drag.widgetId == id) {
+            areaPtr->setCursorShape(0);
+            finishDrag();
+          }
+        });
+        area.setOnMotion([this, id = m_selectedWidgetId](const InputArea::PointerData& /*data*/) {
+          if ((m_drag.mode == DragMode::Rotate || m_drag.mode == DragMode::Tilt) && m_drag.widgetId == id) {
+            updateDrag();
+          }
+        });
+      };
+
       auto rotateArea = ui::inputArea({});
       rotateArea->setZIndex(1);
-      rotateArea->setOnPress([this, id = m_selectedWidgetId](const InputArea::PointerData& data) {
-        if (data.button != BTN_LEFT) {
-          return;
-        }
-        if (data.pressed) {
-          startDrag(DragMode::Rotate, id, false);
-        } else if (m_drag.mode == DragMode::Rotate && m_drag.widgetId == id) {
-          finishDrag();
-        }
-      });
-      rotateArea->setOnMotion([this, id = m_selectedWidgetId](const InputArea::PointerData& /*data*/) {
-        if (m_drag.mode == DragMode::Rotate && m_drag.widgetId == id) {
-          updateDrag();
-        }
-      });
+      attachRotateHandlers(*rotateArea);
       surface.rotateArea = rotateArea.get();
       surface.selectionFrameTransform->addChild(std::move(rotateArea));
     }
@@ -1361,6 +1398,7 @@ void DesktopWidgetsEditor::updateSelectionVisuals(OverlaySurface& surface) {
     secondary.transform->setFrameSize(width, height);
     secondary.transform->setPosition(left, top);
     secondary.transform->setRotation(state->rotationRad);
+    secondary.transform->setTilt(state->tiltX, state->tiltY);
 
     if (secondary.borderShadow != nullptr) {
       secondary.borderShadow->setPosition(-kShadowExpand, -kShadowExpand);
@@ -1397,10 +1435,12 @@ void DesktopWidgetsEditor::updateSelectionVisuals(OverlaySurface& surface) {
   surface.selectionFrameTransform->setFrameSize(width, height);
   surface.selectionFrameTransform->setPosition(left, top);
   surface.selectionFrameTransform->setRotation(state->rotationRad);
+  surface.selectionFrameTransform->setTilt(state->tiltX, state->tiltY);
 
   surface.selectionBorderTransform->setFrameSize(width, height);
   surface.selectionBorderTransform->setPosition(left, top);
   surface.selectionBorderTransform->setRotation(state->rotationRad);
+  surface.selectionBorderTransform->setTilt(state->tiltX, state->tiltY);
 
   if (!selectedIsLoginBox) {
     const float ringPadExp = kRotatePadding + kShadowExpand;
@@ -1426,8 +1466,7 @@ void DesktopWidgetsEditor::updateSelectionVisuals(OverlaySurface& surface) {
 
   for (std::size_t i = 0; i < kScaleCornerCount; ++i) {
     const CornerSigns signs = cornerSigns(i);
-    const auto [cornerX, cornerY] =
-        rotatedCorner(state->cx, state->cy, width * 0.5F * signs.x, height * 0.5F * signs.y, state->rotationRad);
+    const auto [cornerX, cornerY] = projectedCorner(*state, width, height, signs);
 
     const float shadowSize = kHandleSize + kShadowExpand * 2.0F;
     if (surface.scaleHandleShadows[i] != nullptr) {
@@ -1485,6 +1524,7 @@ void DesktopWidgetsEditor::applyViewState(
   view.transformNode->setFrameSize(view.intrinsicWidth, view.intrinsicHeight);
   view.transformNode->setPosition(state.cx - view.intrinsicWidth * 0.5F, state.cy - view.intrinsicHeight * 0.5F);
   view.transformNode->setRotation(state.rotationRad);
+  view.transformNode->setTilt(state.tiltX, state.tiltY);
   {
     float flipScaleX = 1.0F;
     float flipScaleY = 1.0F;
@@ -1527,6 +1567,7 @@ void DesktopWidgetsEditor::applyScaleDragPreview(const DesktopWidgetState& state
   view->transformNode->setFrameSize(view->intrinsicWidth, view->intrinsicHeight);
   view->transformNode->setPosition(state.cx - view->intrinsicWidth * 0.5F, state.cy - view->intrinsicHeight * 0.5F);
   view->transformNode->setRotation(state.rotationRad);
+  view->transformNode->setTilt(state.tiltX, state.tiltY);
   view->transformNode->setScale(flipScaleX, flipScaleY);
   view->transformNode->setOpacity(state.enabled ? 1.0F : kDisabledWidgetOpacity);
 
@@ -2025,7 +2066,8 @@ void DesktopWidgetsEditor::finishLassoSelection() {
       continue;
     }
     const WidgetTransformBounds bounds = computeWidgetTransformBounds(
-        state->cx, state->cy, view.intrinsicWidth, view.intrinsicHeight, 1.0F, state->rotationRad
+        state->cx, state->cy, view.intrinsicWidth, view.intrinsicHeight, 1.0F, state->rotationRad, state->tiltX,
+        state->tiltY
     );
     const float widgetRight = bounds.left + bounds.aabbWidth;
     const float widgetBottom = bounds.top + bounds.aabbHeight;
@@ -2074,10 +2116,24 @@ void DesktopWidgetsEditor::startDrag(
     m_drag.movePointerOffsetY = state->cy - m_drag.startSceneY;
   }
 
-  if (mode == DragMode::Move || mode == DragMode::Rotate || mode == DragMode::Scale) {
+  if (mode == DragMode::Move || mode == DragMode::Rotate || mode == DragMode::Tilt || mode == DragMode::Scale) {
     populateGroupInitialStates(widgetId);
   } else {
     m_drag.groupInitialStates.clear();
+  }
+
+  if (mode == DragMode::Scale) {
+    // Remember where the pointer sits relative to the grabbed (projected) corner in the widget's
+    // un-rotated frame, so the first pointer move continues from the current size instead of
+    // snapping the box to the pointer.
+    const float rot = state->rotationRad;
+    const float dx = m_currentEventSceneX - state->cx;
+    const float dy = m_currentEventSceneY - state->cy;
+    const float localX = dx * std::cos(-rot) - dy * std::sin(-rot);
+    const float localY = dx * std::sin(-rot) + dy * std::cos(-rot);
+    const CornerSigns signs = cornerSigns(static_cast<std::size_t>(scaleCorner));
+    m_drag.scaleGrabOffsetX = signs.x * std::max(0.5F, view->intrinsicWidth * 0.5F) - localX;
+    m_drag.scaleGrabOffsetY = signs.y * std::max(0.5F, view->intrinsicHeight * 0.5F) - localY;
   }
 
   if (mode == DragMode::Scale && view->widget != nullptr && m_renderContext != nullptr) {
@@ -2187,7 +2243,8 @@ void DesktopWidgetsEditor::updateDrag() {
         continue;
       }
       const WidgetTransformBounds bounds = computeWidgetTransformBounds(
-          otherState->cx, otherState->cy, view.intrinsicWidth, view.intrinsicHeight, 1.0F, otherState->rotationRad
+          otherState->cx, otherState->cy, view.intrinsicWidth, view.intrinsicHeight, 1.0F, otherState->rotationRad,
+          otherState->tiltX, otherState->tiltY
       );
       snapLinesX.push_back(bounds.left);
       snapLinesX.push_back(otherState->cx);
@@ -2209,7 +2266,8 @@ void DesktopWidgetsEditor::updateDrag() {
     }
     if (shouldSnap()) {
       const WidgetTransformBounds bounds = computeWidgetTransformBounds(
-          state->cx, state->cy, m_drag.intrinsicWidth, m_drag.intrinsicHeight, 1.0F, state->rotationRad
+          state->cx, state->cy, m_drag.intrinsicWidth, m_drag.intrinsicHeight, 1.0F, state->rotationRad, state->tiltX,
+          state->tiltY
       );
       state->cx = snapBoundsAxisToTargets(
           state->cx, bounds.aabbWidth, m_snapshot.grid.cellSize, gridOriginX, snapLinesX, guideThreshold
@@ -2277,6 +2335,31 @@ void DesktopWidgetsEditor::updateDrag() {
         desktop_widgets::clampStateToOutput(*m_wayland, *groupState, initial.intrinsicWidth, initial.intrinsicHeight);
       }
     }
+  } else if (m_drag.mode == DragMode::Tilt) {
+    const WidgetTiltAngles tilt = widgetTiltFromDrag(
+        m_currentEventSceneX - m_drag.startSceneX, m_currentEventSceneY - m_drag.startSceneY,
+        m_drag.initialState.rotationRad, m_drag.initialState.tiltX, m_drag.initialState.tiltY, shouldSnap(),
+        kDesktopWidgetMaxTiltRad
+    );
+    state->tiltX = tilt.tiltX;
+    state->tiltY = tilt.tiltY;
+
+    // Every selected widget tilts by the same delta around its own centre; positions are untouched.
+    const float deltaTiltX = tilt.tiltX - m_drag.initialState.tiltX;
+    const float deltaTiltY = tilt.tiltY - m_drag.initialState.tiltY;
+    for (const auto& [groupId, initial] : m_drag.groupInitialStates) {
+      DesktopWidgetState* groupState = findWidgetState(groupId);
+      if (groupState == nullptr) {
+        continue;
+      }
+      groupState->tiltX =
+          std::clamp(initial.state.tiltX + deltaTiltX, -kDesktopWidgetMaxTiltRad, kDesktopWidgetMaxTiltRad);
+      groupState->tiltY =
+          std::clamp(initial.state.tiltY + deltaTiltY, -kDesktopWidgetMaxTiltRad, kDesktopWidgetMaxTiltRad);
+      if (m_wayland != nullptr) {
+        desktop_widgets::clampStateToOutput(*m_wayland, *groupState, initial.intrinsicWidth, initial.intrinsicHeight);
+      }
+    }
   } else if (m_drag.mode == DragMode::Scale) {
     // Resize the widget's box tile. The opposite corner stays fixed (Alt anchors the center).
     // Snapping quantizes the box width/height to whole grid cells; content re-fits the box.
@@ -2299,8 +2382,8 @@ void DesktopWidgetsEditor::updateDrag() {
     // Dragged corner relative to the anchor, projected into the widget's un-rotated frame.
     const float wx = m_currentEventSceneX - anchorX;
     const float wy = m_currentEventSceneY - anchorY;
-    const float localX = wx * std::cos(-rot) - wy * std::sin(-rot);
-    const float localY = wx * std::sin(-rot) + wy * std::cos(-rot);
+    const float localX = wx * std::cos(-rot) - wy * std::sin(-rot) + m_drag.scaleGrabOffsetX;
+    const float localY = wx * std::sin(-rot) + wy * std::cos(-rot) + m_drag.scaleGrabOffsetY;
 
     // Corner-anchored resize uses the signed projection along the corner's direction so dragging
     // past the fixed anchor clamps to the minimum size instead of flipping sign and growing again.

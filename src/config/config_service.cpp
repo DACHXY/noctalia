@@ -271,6 +271,12 @@ namespace {
     if (auto rotation = finiteDouble(widgetTable["rotation"])) {
       widget.rotationRad = static_cast<float>(*rotation);
     }
+    if (auto tiltX = finiteDouble(widgetTable["tilt_x"])) {
+      widget.tiltX = std::clamp(static_cast<float>(*tiltX), -kDesktopWidgetMaxTiltRad, kDesktopWidgetMaxTiltRad);
+    }
+    if (auto tiltY = finiteDouble(widgetTable["tilt_y"])) {
+      widget.tiltY = std::clamp(static_cast<float>(*tiltY), -kDesktopWidgetMaxTiltRad, kDesktopWidgetMaxTiltRad);
+    }
     if (auto flipX = widgetTable["flip_x"].value<bool>()) {
       widget.flipX = *flipX;
     }

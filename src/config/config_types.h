@@ -781,6 +781,10 @@ struct DesktopWidgetsGridState {
   bool operator==(const DesktopWidgetsGridState&) const = default;
 };
 
+// Maximum tilt angle in radians (80 degrees). Tilt is the projective rotation of
+// a widget around its horizontal (X) and vertical (Y) axes.
+inline constexpr float kDesktopWidgetMaxTiltRad = 1.3962634F;
+
 struct DesktopWidgetState {
   std::string id;
   std::string type = "clock";
@@ -796,6 +800,9 @@ struct DesktopWidgetState {
   float boxWidth = 0.0F;
   float boxHeight = 0.0F;
   float rotationRad = 0.0F;
+  // Tilt around the widget's X (pitch) and Y (yaw) axes, in radians.
+  float tiltX = 0.0F;
+  float tiltY = 0.0F;
   bool flipX = false;
   bool flipY = false;
   // Desktop only: keep the widget above wallpaper occlusion masks set by plugins.

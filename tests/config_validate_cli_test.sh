@@ -61,7 +61,8 @@ for expected in \
   "wrong-types.toml:7:22: osd.background_opacity: expected a number, found a string" \
   "wrong-types.toml:8:12: osd.monitors[0]: expected a string, found an integer" \
   "wrong-types.toml:9:9: osd.kinds: expected a table, found an integer" \
-  "wrong-types.toml:12:11: desktop_widgets.enabled: expected a boolean, found a string"; do
+  "wrong-types.toml:12:11: desktop_widgets.enabled: expected a boolean, found a string" \
+  "wrong-types.toml:16:10: desktop_widgets.widget.tilted.tilt_x: expected a number, found a string"; do
   case "$types_output" in
     *"WARN  tests/config_validate/$expected"*) ;;
     *) fail "wrong-type config did not report: $expected" ;;
