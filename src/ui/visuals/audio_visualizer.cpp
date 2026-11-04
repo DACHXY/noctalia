@@ -108,6 +108,12 @@ void AudioVisualizer::setCentered(bool centered) {
   setStyle(next);
 }
 
+void AudioVisualizer::setRounded(bool rounded) {
+  auto next = style();
+  next.rounded = rounded;
+  setStyle(next);
+}
+
 void AudioVisualizer::setWave(bool wave) {
   auto next = style();
   next.wave = wave;

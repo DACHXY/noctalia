@@ -30,6 +30,9 @@ private:
   ShaderProgram m_program;
   GLint m_positionLocation = -1;
   GLint m_colorLocation = -1;
+  GLint m_shapeLocation = -1;
+  GLint m_radiusLocation = -1;
+  GLint m_antialiasLocation = -1;
   GLint m_surfaceSizeLocation = -1;
   GLint m_pixelScaleLocation = -1;
   GLint m_snapToDeviceLocation = -1;

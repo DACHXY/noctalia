@@ -287,6 +287,9 @@ namespace desktop_settings {
       auto centered = boolSpec("centered", true);
       centered.visibleWhen = WidgetSettingVisibility{"show_wave", {"false"}};
       add(std::move(centered));
+      auto rounded = boolSpec("rounded", false);
+      rounded.visibleWhen = WidgetSettingVisibility{"show_wave", {"false"}};
+      add(std::move(rounded));
       add(boolSpec("show_wave", false));
       add(boolSpec("show_when_idle", true));
       add(colorSpec("color_1", "primary"));

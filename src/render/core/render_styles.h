@@ -180,6 +180,8 @@ struct AudioSpectrumStyle {
   bool reversed = false;
   bool centered = false;
   bool wave = false;
+  // Draw bars as capsules (both ends rounded). Ignored in wave mode.
+  bool rounded = false;
 };
 
 constexpr bool operator==(const AudioSpectrumStyle& lhs, const AudioSpectrumStyle& rhs) noexcept {
@@ -189,7 +191,8 @@ constexpr bool operator==(const AudioSpectrumStyle& lhs, const AudioSpectrumStyl
       && lhs.mirrored == rhs.mirrored
       && lhs.reversed == rhs.reversed
       && lhs.centered == rhs.centered
-      && lhs.wave == rhs.wave;
+      && lhs.wave == rhs.wave
+      && lhs.rounded == rhs.rounded;
 }
 
 enum class FancyAudioVisualizerMode : std::uint8_t {

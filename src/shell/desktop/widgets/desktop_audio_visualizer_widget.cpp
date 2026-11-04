@@ -23,7 +23,7 @@ namespace {
 
 DesktopAudioVisualizerWidget::DesktopAudioVisualizerWidget(PipeWireSpectrum* spectrum, Options options)
     : m_spectrum(spectrum), m_bands(std::max(1, options.bands)), m_mirrored(options.mirrored),
-      m_reversed(options.reversed), m_centered(options.centered), m_wave(options.wave),
+      m_reversed(options.reversed), m_centered(options.centered), m_wave(options.wave), m_rounded(options.rounded),
       m_showWhenIdle(options.showWhenIdle), m_color1(options.color1), m_color2(options.color2) {}
 
 DesktopAudioVisualizerWidget::~DesktopAudioVisualizerWidget() {
@@ -43,6 +43,7 @@ void DesktopAudioVisualizerWidget::create() {
   visualizer->setMirrored(m_mirrored);
   visualizer->setReversed(m_reversed);
   visualizer->setWave(m_wave);
+  visualizer->setRounded(m_rounded);
   visualizer->setGradient(m_color1, m_color2);
   m_visualizer = visualizer.get();
   rootNode->addChild(std::move(visualizer));
@@ -91,6 +92,14 @@ bool DesktopAudioVisualizerWidget::applySetting(
     if (const auto* v = std::get_if<bool>(&value)) {
       m_centered = *v;
       m_visualizer->setCentered(m_centered);
+      return true;
+    }
+    return false;
+  }
+  if (key == "rounded") {
+    if (const auto* v = std::get_if<bool>(&value)) {
+      m_rounded = *v;
+      m_visualizer->setRounded(m_rounded);
       return true;
     }
     return false;

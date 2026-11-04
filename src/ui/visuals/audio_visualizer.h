@@ -18,6 +18,7 @@ public:
   void setReversed(bool reversed);
   void setCentered(bool centered);
   void setWave(bool wave);
+  void setRounded(bool rounded);
   void setSmoothingTimeMs(float tauMs) noexcept { m_smoothingTauMs = std::max(0.0F, tauMs); }
 
   void tick(float deltaMs);
