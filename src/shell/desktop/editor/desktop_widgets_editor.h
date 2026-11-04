@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/desktop_widget_set.h"
 #include "render/animation/animation_manager.h"
 #include "render/core/shared_texture_cache.h"
 #include "render/scene/input_dispatcher.h"
@@ -37,6 +38,16 @@ public:
 
   void initialize(const DesktopWidgetServices& services);
   void setExitRequestedCallback(std::function<void()> callback);
+  // Supplied by the controller: the editor shows the widget sets of the output's wallpaper and asks
+  // it to save/apply/promote/delete, so the persisted graph has exactly one owner.
+  struct WidgetSetActions {
+    std::function<std::vector<desktop_widgets::WidgetSetView>(const std::string& outputKey)> list;
+    std::function<bool(const std::string& name, const std::string& outputKey)> save;
+    std::function<bool(const std::string& setID, const std::string& outputKey)> apply;
+    std::function<bool(const std::string& setID)> setDefault;
+    std::function<bool(const std::string& setID)> remove;
+  };
+  void setWidgetSetActions(WidgetSetActions actions);
 
   void open(const DesktopWidgetsEditorSnapshot& snapshot);
   [[nodiscard]] const DesktopWidgetsEditorSnapshot& snapshot() const noexcept { return m_snapshot; }
@@ -127,6 +138,10 @@ private:
     float toolbarX = 0.0F;
     float toolbarY = 0.0F;
     bool toolbarPositionInitialized = false;
+    Node* widgetSetsPanel = nullptr;
+    float widgetSetsPanelX = 0.0F;
+    float widgetSetsPanelY = 0.0F;
+    bool widgetSetsPanelPositionInitialized = false;
     Node* inspector = nullptr;
     float inspectorX = 0.0F;
     float inspectorY = 0.0F;
@@ -198,6 +213,9 @@ private:
   void clampToolbarPosition(OverlaySurface& surface, float toolbarWidth, float toolbarHeight);
   void clampInspectorPosition(OverlaySurface& surface, float inspectorWidth, float inspectorHeight);
   void buildInspector(OverlaySurface& surface, Node& root, const DesktopWidgetState& selectedState);
+  void buildWidgetSetsPanel(OverlaySurface& surface, Node& root);
+  void refreshWidgetSetViews(const std::string& outputKey);
+  void saveWidgetSetFromEditor(std::string name, const std::string& outputKey);
   void deferEditorMutation(std::function<void()> action);
   void requestExit();
   void startDrag(
@@ -263,4 +281,8 @@ private:
   float m_currentEventSceneY = 0.0F;
   std::string m_currentEventOutputName;
   bool m_inspectorOpen = false;
+  bool m_widgetSetsOpen = false;
+  WidgetSetActions m_widgetSetActions;
+  std::vector<desktop_widgets::WidgetSetView> m_widgetSetViews;
+  std::string m_widgetSetName;
 };

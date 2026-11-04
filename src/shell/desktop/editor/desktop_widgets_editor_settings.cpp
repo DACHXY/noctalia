@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <functional>
 #include <linux/input-event-codes.h>
 #include <optional>
@@ -1177,6 +1178,13 @@ void DesktopWidgetsEditor::buildInspector(
   panelPtr->setPosition(surface.inspectorX, surface.inspectorY);
 }
 
+void DesktopWidgetsEditor::setWidgetSetActions(WidgetSetActions actions) { m_widgetSetActions = std::move(actions); }
+
+void DesktopWidgetsEditor::refreshWidgetSetViews(const std::string& outputKey) {
+  m_widgetSetViews =
+      m_widgetSetActions.list ? m_widgetSetActions.list(outputKey) : std::vector<desktop_widgets::WidgetSetView>{};
+}
+
 void DesktopWidgetsEditor::replaceSnapshot(const DesktopWidgetsEditorSnapshot& snapshot) {
   m_snapshot = snapshot;
   // The widgets the user had selected may not exist in the snapshot that came back.
@@ -1184,4 +1192,228 @@ void DesktopWidgetsEditor::replaceSnapshot(const DesktopWidgetsEditorSnapshot& s
   m_inspectorOpen = false;
   syncSurfaces();
   requestLayout();
+}
+
+void DesktopWidgetsEditor::saveWidgetSetFromEditor(std::string name, const std::string& outputKey) {
+  const auto firstNonSpace = name.find_first_not_of(' ');
+  if (firstNonSpace == std::string::npos) {
+    return;
+  }
+  name = name.substr(firstNonSpace, name.find_last_not_of(' ') - firstNonSpace + 1);
+  if (!m_widgetSetActions.save || !m_widgetSetActions.save(name, outputKey)) {
+    return;
+  }
+  m_widgetSetName.clear();
+  refreshWidgetSetViews(outputKey);
+  requestLayout();
+}
+
+void DesktopWidgetsEditor::buildWidgetSetsPanel(OverlaySurface& surface, Node& root) {
+  Renderer& renderer = surface.surface->renderTarget().renderer();
+  const std::string outputKey = surface.outputName;
+  const float panelRadius = Style::scaledRadiusXl();
+
+  auto scrollView = ui::scrollView({
+      .width = kInspectorWidth,
+      .height = 0.0F,
+  });
+  auto* content = scrollView->content();
+  content->setDirection(FlexDirection::Vertical);
+  content->setGap(Style::spaceXs);
+  content->setPadding(Style::spaceSm, Style::spaceMd);
+
+  if (m_widgetSetViews.empty()) {
+    content->addChild(
+        ui::label({
+            .text = i18n::tr("desktop-widgets.editor.sets.empty"),
+            .fontSize = Style::fontSizeCaption,
+        })
+    );
+  }
+  for (const auto& view : m_widgetSetViews) {
+    auto row = ui::row({
+        .align = FlexAlign::Center,
+        .gap = Style::spaceXs,
+        .paddingV = Style::spaceXs,
+        .minHeight = Style::controlHeightSm,
+        .fillWidth = true,
+    });
+    row->addChild(
+        ui::label({
+            .text = view.name,
+            .fontSize = Style::fontSizeBody,
+            // The set on screen is marked by its name; the apply button stays a plain action.
+            .fontWeight = view.isActive ? FontWeight::Bold : FontWeight::Normal,
+            .color = colorSpecFromRole(view.isActive ? ColorRole::Primary : ColorRole::OnSurface),
+            .flexGrow = 1.0F,
+        })
+    );
+    row->addChild(
+        ui::button({
+            .glyph = "check",
+            .glyphSize = 12.0F,
+            .controlHeight = kInspectorCloseSize,
+            .variant = ButtonVariant::Default,
+            .tooltip = i18n::tr("desktop-widgets.editor.sets.apply"),
+            .onClick = [this, setID = view.id, outputKey] {
+              deferEditorMutation([this, setID, outputKey] {
+                if (m_widgetSetActions.apply) {
+                  m_widgetSetActions.apply(setID, outputKey);
+                }
+                refreshWidgetSetViews(outputKey);
+                requestLayout();
+              });
+            },
+        })
+    );
+    row->addChild(
+        ui::button({
+            // One star per row: filled marks the wallpaper's default set, clicking an empty star
+            // makes that set the default.
+            .glyph = view.isDefault ? "star-filled" : "star",
+            .glyphSize = 12.0F,
+            .controlHeight = kInspectorCloseSize,
+            .variant = ButtonVariant::Default,
+            .tooltip = i18n::tr("desktop-widgets.editor.sets.make-default"),
+            .onClick = [this, setID = view.id, outputKey] {
+              deferEditorMutation([this, setID, outputKey] {
+                if (m_widgetSetActions.setDefault) {
+                  m_widgetSetActions.setDefault(setID);
+                }
+                refreshWidgetSetViews(outputKey);
+                requestLayout();
+              });
+            },
+        })
+    );
+    row->addChild(
+        ui::button({
+            .glyph = "trash",
+            .glyphSize = 12.0F,
+            .controlHeight = kInspectorCloseSize,
+            .variant = ButtonVariant::Destructive,
+            .tooltip = i18n::tr("desktop-widgets.editor.sets.remove"),
+            .onClick = [this, setID = view.id, outputKey] {
+              deferEditorMutation([this, setID, outputKey] {
+                if (m_widgetSetActions.remove) {
+                  m_widgetSetActions.remove(setID);
+                }
+                refreshWidgetSetViews(outputKey);
+                requestLayout();
+              });
+            },
+        })
+    );
+    content->addChild(std::move(row));
+  }
+
+  content->addChild(
+      ui::row(
+          {
+              .align = FlexAlign::Center,
+              .gap = Style::spaceXs,
+              .fillWidth = true,
+          },
+          ui::input({
+              .value = m_widgetSetName,
+              .placeholder = i18n::tr("desktop-widgets.editor.sets.name-placeholder"),
+              .controlHeight = Style::controlHeightSm,
+              .flexGrow = 1.0F,
+              .onChange = [this](const std::string& text) { m_widgetSetName = text; },
+              .onSubmit = [this, outputKey](const std::string& text) { saveWidgetSetFromEditor(text, outputKey); },
+          }),
+          ui::button({
+              .glyph = "plus",
+              .glyphSize = 12.0F,
+              .controlHeight = Style::controlHeightSm,
+              .variant = ButtonVariant::Primary,
+              .tooltip = i18n::tr("desktop-widgets.editor.sets.save"),
+              .onClick = [this, outputKey] { saveWidgetSetFromEditor(m_widgetSetName, outputKey); },
+          })
+      )
+  );
+
+  Flex* panelPtr = nullptr;
+  auto panel = ui::column(
+      {
+          .out = &panelPtr,
+          .align = FlexAlign::Stretch,
+          .gap = 0.0F,
+          .minWidth = kInspectorWidth,
+          .maxWidth = kInspectorWidth,
+          .clipChildren = true,
+          .configure =
+              [panelRadius](Flex& flex) {
+                flex.setFill(colorSpecFromRole(ColorRole::Surface, 0.94F));
+                flex.setBorder(colorSpecFromRole(ColorRole::OutlineVariant), Style::borderWidth);
+                flex.setRadius(panelRadius);
+                flex.setZIndex(201);
+              },
+      },
+      ui::row(
+          {
+              .align = FlexAlign::Center,
+              .gap = Style::spaceSm,
+              .paddingV = Style::spaceXs,
+              .paddingH = Style::spaceMd,
+              .fill = colorSpecFromRole(ColorRole::SurfaceContainer, 0.85F),
+              .minHeight = Style::controlHeightSm,
+              .fillWidth = true,
+              .width = kInspectorWidth,
+              .configure = [panelRadius](Flex& flex) { flex.setRadii(Radii(panelRadius, panelRadius, 0.0F, 0.0F)); },
+          },
+          ui::glyph({
+              .glyph = "menu-2",
+              .glyphSize = 14.0F,
+          }),
+          ui::label({
+              // Sets belong to one output, so name it: the panel opens on whichever output was clicked.
+              .text = std::format("{} · {}", i18n::tr("desktop-widgets.editor.sets.title"), outputKey),
+              .fontSize = Style::fontSizeBody,
+              .fontWeight = FontWeight::Bold,
+          }),
+          ui::spacer(),
+          ui::button({
+              .glyph = "close",
+              .glyphSize = 12.0F,
+              .controlHeight = kInspectorCloseSize,
+              .variant = ButtonVariant::Ghost,
+              .minWidth = kInspectorCloseSize,
+              .maxWidth = kInspectorCloseSize,
+              .padding = 2.0F,
+              .radius = Style::scaledRadiusSm(),
+              .width = kInspectorCloseSize,
+              .height = kInspectorCloseSize,
+              .onClick =
+                  [this] {
+                    deferEditorMutation([this] {
+                      m_widgetSetsOpen = false;
+                      requestLayout();
+                    });
+                  },
+          })
+      ),
+      std::move(scrollView)
+  );
+
+  surface.widgetSetsPanel = panelPtr;
+  root.addChild(std::move(panel));
+  panelPtr->layout(renderer);
+
+  if (!surface.widgetSetsPanelPositionInitialized) {
+    // Mirror the inspector: directly under the toolbar, or top-left when nothing anchors it.
+    if (surface.toolbar != nullptr) {
+      surface.widgetSetsPanelX = surface.toolbarX;
+      surface.widgetSetsPanelY = surface.toolbarY + surface.toolbar->height() + Style::spaceSm;
+    } else {
+      surface.widgetSetsPanelX = Style::spaceMd;
+      surface.widgetSetsPanelY = Style::spaceMd;
+    }
+    surface.widgetSetsPanelPositionInitialized = true;
+  }
+  const float maxX = std::max(0.0F, root.width() - panelPtr->width());
+  const float maxY = std::max(0.0F, root.height() - panelPtr->height());
+  surface.widgetSetsPanelX = std::clamp(surface.widgetSetsPanelX, 0.0F, maxX);
+  surface.widgetSetsPanelY = std::clamp(surface.widgetSetsPanelY, 0.0F, maxY);
+  panelPtr->setPosition(surface.widgetSetsPanelX, surface.widgetSetsPanelY);
 }

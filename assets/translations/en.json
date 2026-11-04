@@ -609,6 +609,17 @@
       "dialogs": {
         "select-sticker-image": "Select Sticker Image"
       },
+      "sets": {
+        "apply": "Apply this set",
+        "button": "Sets",
+        "default-badge": "Default set",
+        "empty": "No widget sets saved for this wallpaper yet.",
+        "make-default": "Make this the default set",
+        "name-placeholder": "Set name",
+        "remove": "Delete this set",
+        "save": "Save current widgets as a set",
+        "title": "Widget Sets"
+      },
       "settings": {
         "album-art-background": "Album Art Background",
         "album-art-blur": "Album Art Blur",

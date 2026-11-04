@@ -102,6 +102,26 @@ void DesktopWidgetsController::initialize(const DesktopWidgetsControllerServices
   m_editor = std::make_unique<DesktopWidgetsEditor>(DesktopWidgetsEditorProfile::desktop());
   m_editor->initialize(services.widgets);
   m_editor->setExitRequestedCallback([this] { exitEdit(); });
+  m_editor->setWidgetSetActions(
+      DesktopWidgetsEditor::WidgetSetActions{
+          .list = [this](
+                      const std::string& outputKey
+                  ) { return m_config->desktopWidgetSets().viewsFor(wallpaperKeyForOutput(outputKey), outputKey); },
+          .save =
+              [this](const std::string& name, const std::string& outputKey) { return saveWidgetSet(name, outputKey); },
+          .apply =
+              [this](const std::string& setID, const std::string& outputKey) {
+                const auto catalog = m_config->desktopWidgetSets();
+                if (catalog.find(setID) == nullptr) {
+                  return false;
+                }
+                applyWidgetSetForOutput(outputKey, setID);
+                return true;
+              },
+          .setDefault = [this](const std::string& setID) { return m_config->setDefaultDesktopWidgetSet(setID); },
+          .remove = [this](const std::string& setID) { return m_config->deleteDesktopWidgetSet(setID); },
+      }
+  );
   loadSnapshotFromConfig();
   const bool placementChanged = m_placementMapper.remapForOutputChange(m_wayland->outputs(), m_snapshot.widgets);
   m_initialized = true;

@@ -273,6 +273,9 @@ void DesktopWidgetsEditor::open(const DesktopWidgetsEditorSnapshot& snapshot) {
   m_leftAltHeld = false;
   m_rightAltHeld = false;
   m_inspectorOpen = false;
+  m_widgetSetsOpen = false;
+  m_widgetSetViews.clear();
+  m_widgetSetName.clear();
   syncSurfaces();
   requestLayout();
 }
@@ -1384,6 +1387,22 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                       }
                   ),
                   ui::button({
+                      .text = i18n::tr("desktop-widgets.editor.sets.button"),
+                      .controlHeight = Style::controlHeightSm,
+                      .selected = m_widgetSetsOpen,
+                      .variant = ButtonVariant::Default,
+                      .onClick =
+                          [this, outputName = surface.outputName] {
+                            deferEditorMutation([this, outputName] {
+                              m_widgetSetsOpen = !m_widgetSetsOpen;
+                              if (m_widgetSetsOpen) {
+                                refreshWidgetSetViews(outputName);
+                              }
+                              requestLayout();
+                            });
+                          },
+                  }),
+                  ui::button({
                       .text = i18n::tr("desktop-widgets.editor.actions.done"),
                       .controlHeight = Style::controlHeightSm,
                       .variant = ButtonVariant::Secondary,
@@ -1413,6 +1432,13 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
       surface.inspectorPositionInitialized = false;
       m_inspectorOpen = false;
     }
+  }
+
+  if (m_widgetSetsOpen) {
+    buildWidgetSetsPanel(surface, *root);
+  } else {
+    surface.widgetSetsPanel = nullptr;
+    surface.widgetSetsPanelPositionInitialized = false;
   }
 
   surface.sceneRoot = std::move(root);
