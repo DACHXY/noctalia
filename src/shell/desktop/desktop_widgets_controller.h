@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config/config_types.h"
+#include "config/desktop_widget_set.h"
 #include "shell/desktop/desktop_widget_layout.h"
 #include "shell/desktop/desktop_widget_services.h"
 #include "shell/desktop/wallpaper_mask.h"
@@ -9,6 +10,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <vector>
 
 class DesktopWidgetsEditor;
 class DesktopWidgetsHost;
@@ -18,6 +20,7 @@ class RenderContext;
 class WaylandConnection;
 struct KeyboardEvent;
 struct PointerEvent;
+struct WallpaperChange;
 
 using DesktopWidgetsSnapshot = DesktopWidgetsConfig;
 
@@ -39,6 +42,9 @@ public:
   void registerIpc(IpcService& ipc);
   void onOutputChange();
   void onSecondTick();
+  // Applies the widget sets the new wallpapers carry. Called from the shared wallpaper-change
+  // callback, so every path (IPC, picker, automation, config reload) lands here.
+  void onWallpaperChange(const std::vector<WallpaperChange>& changes);
   // True when a visible widget renders a value that changes every second.
   [[nodiscard]] bool wantsSecondTicks() const;
   void requestUpdate();
@@ -84,6 +90,22 @@ private:
   void syncWallpaperMasks();
   void pruneWallpaperMasks();
   [[nodiscard]] bool runtimeWantsVisible() const noexcept;
+  // Replaces `outputKey`'s widgets with the set's, rebinding them to that output.
+  void applyWidgetSetForOutput(const std::string& outputKey, const std::string& setID);
+  // Captures the live widgets of an output back into its active set (the automatic write-back).
+  void syncActiveWidgetSet(const std::string& outputKey);
+  void captureEditorSnapshot();
+  [[nodiscard]] bool isShownOn(const DesktopWidgetState& widget, const std::string& outputKey) const;
+  [[nodiscard]] std::vector<DesktopWidgetState> widgetsShownOn(const std::string& outputKey) const;
+  // The wallpaper currently shown on an output, as a set key.
+  [[nodiscard]] std::string wallpaperKeyForOutput(const std::string& outputKey) const;
+  [[nodiscard]] std::string defaultOutputKey() const;
+  // Splits `<name...> [connector]` into a set name and an output key (defaults to the first output).
+  [[nodiscard]] std::string parseWidgetSetArgs(const std::string& args, std::string& name) const;
+  // Id rather than pointer: the catalog is a copy local to the lookup.
+  [[nodiscard]] std::string findWidgetSetIdForOutput(const std::string& name, const std::string& outputKey) const;
+  bool saveWidgetSet(const std::string& name, const std::string& outputKey);
+  void registerWidgetSetIpc(IpcService& ipc);
 
   WaylandConnection* m_wayland = nullptr;
   ConfigService* m_config = nullptr;

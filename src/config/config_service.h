@@ -2,6 +2,7 @@
 
 #include "config/config_migrations.h"
 #include "config/config_types.h"
+#include "config/desktop_widget_set.h"
 #include "config/schema/diagnostics.h"
 #include "config/state_store.h"
 #include "core/inotify/inotify.h"
@@ -144,6 +145,18 @@ public:
   // Persist desktop widget layout/editor state to settings.toml and trigger the reload pipeline.
   bool setDesktopWidgetsState(const DesktopWidgetsConfig& desktopWidgets);
   bool setLockscreenWidgetsState(const LockscreenWidgetsConfig& lockscreenWidgets);
+  // Wallpaper-bound widget sets: persisted next to the widget placement in settings.toml.
+  [[nodiscard]] desktop_widgets::WidgetSetCatalog desktopWidgetSets() const;
+  // Saves (insert or replace by id); an empty id captures a new set with the next id.
+  bool saveDesktopWidgetSet(const desktop_widgets::DesktopWidgetSet& set);
+  bool deleteDesktopWidgetSet(std::string_view id);
+  bool setDefaultDesktopWidgetSet(std::string_view id);
+  // Records which set is live on an output; an empty id clears it.
+  bool setActiveDesktopWidgetSet(std::string_view outputKey, std::string_view id);
+  // A wallpaper change may name a set to apply. Stored here because the wallpaper and the
+  // widget controller are wired through one shared change callback.
+  void setPendingWidgetSetName(std::string name);
+  [[nodiscard]] std::string takePendingWidgetSetName();
   // Persist app-owned UI/runtime state to state.toml. This does not affect Config reloads.
   bool setStateBool(std::string_view owner, std::string_view key, bool value);
   bool setStateString(std::string_view owner, std::string_view key, std::string_view value);
@@ -282,6 +295,7 @@ private:
   std::string m_lastWallpaperPath;
   std::unordered_map<std::string, std::string> m_monitorWallpaperPaths;
   std::vector<WallpaperFavorite> m_wallpaperFavorites;
+  std::string m_pendingWidgetSetName;
   mutable std::unordered_map<std::string, bool> m_effectiveOverrideCache;
 
   ConfigProblem m_overridesParseError;

@@ -11,6 +11,7 @@
 #include "config/schema/engine.h"
 #include "config/schema/ranges.h"
 #include "config/widget_config.h"
+#include "config/widget_placement_toml.h"
 #include "core/build_info.h"
 #include "core/deferred_call.h"
 #include "core/log.h"
@@ -553,6 +554,21 @@ namespace {
   }
 
 } // namespace
+
+namespace noctalia::config {
+
+  bool readDesktopWidgetPlacement(
+      const toml::table& sectionTbl, DesktopWidgetsGridState& grid, std::vector<DesktopWidgetState>& widgets,
+      std::string_view colorSection
+  ) {
+    if (sectionTbl["widget"].as_table() == nullptr) {
+      return false;
+    }
+    parseWidgetsPlacementSection(sectionTbl, grid, widgets, colorSection);
+    return true;
+  }
+
+} // namespace noctalia::config
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 

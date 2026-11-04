@@ -1176,3 +1176,12 @@ void DesktopWidgetsEditor::buildInspector(
   clampInspectorPosition(surface, panelPtr->width(), panelPtr->height());
   panelPtr->setPosition(surface.inspectorX, surface.inspectorY);
 }
+
+void DesktopWidgetsEditor::replaceSnapshot(const DesktopWidgetsEditorSnapshot& snapshot) {
+  m_snapshot = snapshot;
+  // The widgets the user had selected may not exist in the snapshot that came back.
+  clearSelection();
+  m_inspectorOpen = false;
+  syncSurfaces();
+  requestLayout();
+}

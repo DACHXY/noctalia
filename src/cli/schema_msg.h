@@ -260,6 +260,28 @@ namespace noctalia::cli {
       Positional{"connector", {}, {}, false, false, false},
       Positional{"path", {}, {}, true, false, false},
   };
+  inline constexpr std::array kMsgWallpaperSetFlags{
+      Flag{"--set", {}, "set", "Name of the widget set to apply with the new wallpaper", {}, {}, false, false},
+  };
+  inline constexpr std::array kMsgDesktopWidgetsSetApplyPositionals{
+      Positional{"name", {}, {}, true, false, false},
+      Positional{"connector", {}, {}, false, false, false},
+  };
+  inline constexpr std::array kMsgDesktopWidgetsSetDeletePositionals{
+      Positional{"name", {}, {}, true, false, false},
+      Positional{"connector", {}, {}, false, false, false},
+  };
+  inline constexpr std::array kMsgDesktopWidgetsSetListPositionals{
+      Positional{"connector", {}, {}, false, false, false},
+  };
+  inline constexpr std::array kMsgDesktopWidgetsSetSavePositionals{
+      Positional{"name", {}, {}, true, false, false},
+      Positional{"connector", {}, {}, false, false, false},
+  };
+  inline constexpr std::array kMsgDesktopWidgetsSetDefaultPositionals{
+      Positional{"name", {}, {}, true, false, false},
+      Positional{"connector", {}, {}, false, false, false},
+  };
   inline constexpr std::array<std::string_view, 3> kMsgWindowSwitcherActionChoices{"close", "hide", "hold"};
   inline constexpr std::array<std::string_view, 4> kMsgWindowSwitcherScopeChoices{
       "all", "output", "workspace", "current"
@@ -510,6 +532,56 @@ namespace noctalia::cli {
     };
     inline constexpr Command desktopWidgetsToggleEdit{
         "desktop-widgets-toggle-edit", "Toggle desktop widgets edit mode", {}, {}, {}, {}, {}, false
+    };
+    inline constexpr Command desktopWidgetsSetApply{
+        "desktop-widgets-set-apply",
+        "Apply a saved widget set to the output whose wallpaper it belongs to",
+        {},
+        {},
+        {},
+        kMsgDesktopWidgetsSetApplyPositionals,
+        {},
+        false
+    };
+    inline constexpr Command desktopWidgetsSetDefault{
+        "desktop-widgets-set-default",
+        "Make a saved widget set the default for its wallpaper",
+        {},
+        {},
+        {},
+        kMsgDesktopWidgetsSetDefaultPositionals,
+        {},
+        false
+    };
+    inline constexpr Command desktopWidgetsSetDelete{
+        "desktop-widgets-set-delete",
+        "Delete a saved widget set",
+        {},
+        {},
+        {},
+        kMsgDesktopWidgetsSetDeletePositionals,
+        {},
+        false
+    };
+    inline constexpr Command desktopWidgetsSetList{
+        "desktop-widgets-set-list",
+        "List the widget sets saved for an output's wallpaper",
+        {},
+        {},
+        {},
+        kMsgDesktopWidgetsSetListPositionals,
+        {},
+        false
+    };
+    inline constexpr Command desktopWidgetsSetSave{
+        "desktop-widgets-set-save",
+        "Save the desktop widgets on an output as a named widget set",
+        {},
+        {},
+        {},
+        kMsgDesktopWidgetsSetSavePositionals,
+        {},
+        false
     };
     inline constexpr Command dockHide{"dock-hide", "Hide the dock (persists override)", {}, {}, {}, {}, {}, false};
     inline constexpr Command dockReload{"dock-reload", "Reload dock configuration", {}, {}, {}, {}, {}, false};
@@ -872,7 +944,7 @@ namespace noctalia::cli {
         "Set wallpaper for all or a specific output (persisted)",
         {},
         {},
-        {},
+        kMsgWallpaperSetFlags,
         kMsgWallpaperSetPositionals,
         {},
         false
@@ -964,6 +1036,11 @@ namespace noctalia::cli {
       msg::desktopWidgetsShow,
       msg::desktopWidgetsToggle,
       msg::desktopWidgetsToggleEdit,
+      msg::desktopWidgetsSetApply,
+      msg::desktopWidgetsSetDefault,
+      msg::desktopWidgetsSetDelete,
+      msg::desktopWidgetsSetList,
+      msg::desktopWidgetsSetSave,
       msg::dockHide,
       msg::dockReload,
       msg::dockShow,

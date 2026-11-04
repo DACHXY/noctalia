@@ -81,6 +81,40 @@ Primary-colored center guides are always shown in edit mode. Dragging a widget s
 
 ---
 
+## Widget sets
+
+A widget set is a named snapshot of the desktop widgets on one output, bound to the wallpaper that output was showing when the set was saved. Sets let one wallpaper drive a whole arrangement, and let a single wallpaper carry several arrangements (for example a daytime and a nighttime layout).
+
+- Sets live in `settings.toml` under `[desktop_widget_sets]`, next to the layout itself — they are editor data, not a config layer you are expected to hand-write.
+- Sets belong to one output: the same wallpaper shown on two monitors keeps a separate list of sets, and a separate default, on each. Switching wallpaper on an output only applies sets saved on that output.
+- The first set saved for a wallpaper on an output becomes its **default**; switching to the wallpaper later applies it.
+- Changing to a wallpaper that has no sets leaves the current widgets untouched.
+- Deleting the default set promotes the next remaining set for that wallpaper on that output.
+- While a set is active on an output, leaving edit mode writes your changes back into it — there is no separate save step for layout tweaks.
+- The snap grid is global and is not stored per set.
+
+### IPC
+
+| Action                                   | Command                                                       | Description                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| List sets of an output's wallpaper       | <IpcCommand command="desktop-widgets-set-list" />             | Print one line per set; the default and the currently active set are marked.                         |
+| Save the output's widgets as a set       | <IpcCommand command="desktop-widgets-set-save Night" />       | Save the widgets currently configured for the output as a named set. The name may contain spaces.    |
+| Apply a set                              | <IpcCommand command="desktop-widgets-set-apply Night" />      | Replace the output's widgets with the set of the same wallpaper.                                     |
+| Make a set the wallpaper default         | <IpcCommand command="desktop-widgets-set-default Night" />    | Apply the set automatically whenever that wallpaper is shown on the output.                          |
+| Delete a set                             | <IpcCommand command="desktop-widgets-set-delete Night" />     | Remove the set; if it was the default, the next remaining set of that wallpaper becomes the default.  |
+
+The connector is optional and defaults to the first connected output. A trailing token is treated as a connector only when it names a connected output, so set names may contain spaces.
+
+To apply a set together with a wallpaper change in one call, name it on `wallpaper-set`:
+
+```sh
+noctalia msg wallpaper-set --set Night DP-1 ~/wallpapers/alps.jpg
+```
+
+An unknown set name is an error and the wallpaper is left unchanged.
+
+---
+
 ## Config Format
 
 Widget definitions are named tables under `[desktop_widgets.widget.<id>]`. This makes them friendly to split config files and deep-merge overrides. Edit mode writes the same schema into `settings.toml`; use Settings -> Export Config... -> Merged User Config to promote GUI-edited layouts back into declarative config. When `widget_order` is present, it is the authoritative widget list and order; unlisted widget tables are ignored.

@@ -2,6 +2,7 @@
 
 #include "compositors/compositor_detect.h"
 #include "config/config_service.h"
+#include "config/desktop_widget_set.h"
 #include "core/files/directory_scanner.h"
 #include "core/log.h"
 #include "core/process/process.h"
@@ -143,6 +144,30 @@ namespace {
       return resolved.string();
     }
     return std::nullopt;
+  }
+
+  // Pulls `--set <name>` / `--set=<name>` out of the token list: the flag is not part of the
+  // connector/path grammar, so parseWallpaperSetTokens never sees it.
+  [[nodiscard]] std::string extractWidgetSetFlag(std::vector<std::string>& tokens) {
+    std::string name;
+    for (auto it = tokens.begin(); it != tokens.end();) {
+      if (*it == "--set") {
+        if (it + 1 != tokens.end()) {
+          name = *(it + 1);
+          it = tokens.erase(it, it + 2);
+        } else {
+          it = tokens.erase(it);
+        }
+        continue;
+      }
+      if (it->starts_with("--set=")) {
+        name = it->substr(std::string_view("--set=").size());
+        it = tokens.erase(it);
+        continue;
+      }
+      ++it;
+    }
+    return name;
   }
 
   struct WallpaperSetParsed {
@@ -797,9 +822,10 @@ void Wallpaper::registerIpc(IpcService& ipc) {
         if (m_config == nullptr) {
           return "error: wallpaper service not initialized\n";
         }
-        const auto tokens = StringUtils::splitWhitespace(StringUtils::trim(args));
+        auto tokens = StringUtils::splitWhitespace(StringUtils::trim(args));
+        const std::string widgetSetName = extractWidgetSetFlag(tokens);
         if (tokens.empty()) {
-          return "error: path required (wallpaper-set [<connector>] <path>)\n";
+          return "error: path required (wallpaper-set [--set <name>] [<connector>] <path>)\n";
         }
 
         const std::optional<std::string_view> callerCwd =
@@ -825,6 +851,21 @@ void Wallpaper::registerIpc(IpcService& ipc) {
           if (const std::string error = validateOutputConnector(*outputConnector); !error.empty()) {
             return error;
           }
+        }
+        if (!widgetSetName.empty()) {
+          // Validated before the wallpaper moves: an unknown set name must leave everything as it was.
+          // Sets belong to one output: the named one must exist on the target output, or on at
+          // least one output when the wallpaper goes to all of them (the rest use their default).
+          const std::string wallpaperKey = desktop_widgets::normalizeWidgetSetWallpaperKey(resolved);
+          const auto catalog = m_config->desktopWidgetSets();
+          const bool known = std::ranges::any_of(m_instances, [&](const auto& inst) {
+            return (!outputConnector.has_value() || inst->connectorName == *outputConnector)
+                && catalog.findByName(wallpaperKey, inst->connectorName, widgetSetName) != nullptr;
+          });
+          if (!known) {
+            return std::format("error: no widget set \"{}\" for this wallpaper\n", widgetSetName);
+          }
+          m_config->setPendingWidgetSetName(widgetSetName);
         }
         applyResolvedWallpaper(outputConnector, resolved);
         return "ok\n";

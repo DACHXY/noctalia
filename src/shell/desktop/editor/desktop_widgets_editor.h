@@ -40,6 +40,8 @@ public:
 
   void open(const DesktopWidgetsEditorSnapshot& snapshot);
   [[nodiscard]] const DesktopWidgetsEditorSnapshot& snapshot() const noexcept { return m_snapshot; }
+  // Swaps in a snapshot the controller rebuilt (applying a set) without leaving edit mode.
+  void replaceSnapshot(const DesktopWidgetsEditorSnapshot& snapshot);
   [[nodiscard]] DesktopWidgetsEditorSnapshot close();
   [[nodiscard]] bool isOpen() const noexcept;
 

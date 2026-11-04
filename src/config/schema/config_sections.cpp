@@ -87,10 +87,12 @@ namespace noctalia::config::schema {
   }
 
   std::span<const std::string_view> customRootKeys() {
-    static constexpr std::array<std::string_view, 8> kKeys = {
+    static constexpr std::array<std::string_view, 9> kKeys = {
         "bar",
         "widget",
         "desktop_widgets",
+        // Written by the shell into settings.toml; read by ConfigService::desktopWidgetSets().
+        "desktop_widget_sets",
         "lockscreen_widgets",
         "plugin_settings",
         "include",

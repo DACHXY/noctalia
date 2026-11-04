@@ -984,6 +984,9 @@ void Application::initAuxServicesAndHooks() {
     m_backdrop.onStateChange();
     m_lockScreen.onWallpaperChanged();
     m_themeService.onWallpaperChange();
+    // Applies the widget set each new wallpaper carries; a wallpaper with no sets leaves the
+    // widgets the user has now untouched.
+    m_desktopWidgetsController.onWallpaperChange(wallpaperChanges);
     if (m_panelManager.isOpenPanel("control-center")) {
       m_panelManager.refresh();
     }

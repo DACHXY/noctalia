@@ -8,6 +8,8 @@
 #include "shell/desktop/editor/desktop_widgets_editor.h"
 #include "shell/desktop/editor/desktop_widgets_editor_types.h"
 #include "shell/lockscreen/lockscreen_widgets_controller.h"
+#include "shell/wallpaper/wallpaper.h"
+#include "util/string_utils.h"
 
 #include <algorithm>
 #include <charconv>
@@ -152,6 +154,307 @@ void DesktopWidgetsController::registerIpc(IpcService& ipc) {
     toggleRuntimeVisibility();
     return isEffectivelyVisible() ? "shown\n" : "hidden\n";
   });
+
+  registerWidgetSetIpc(ipc);
+}
+
+void DesktopWidgetsController::registerWidgetSetIpc(IpcService& ipc) {
+  ipc.bind(noctalia::cli::msg::desktopWidgetsSetList, [this](const std::string& args) -> std::string {
+    std::string name;
+    const std::string outputKey = parseWidgetSetArgs(args, name);
+    if (outputKey.empty()) {
+      return "error: no output to list widget sets for\n";
+    }
+    const auto catalog = m_config->desktopWidgetSets();
+    const auto views = catalog.viewsFor(wallpaperKeyForOutput(outputKey), outputKey);
+    if (views.empty()) {
+      return "error: no widget sets for this wallpaper\n";
+    }
+    std::string out;
+    for (const auto& view : views) {
+      out += view.name;
+      if (view.isDefault) {
+        out += " (default)";
+      }
+      if (view.isActive) {
+        out += " (active)";
+      }
+      out += "\n";
+    }
+    return out;
+  });
+
+  ipc.bind(noctalia::cli::msg::desktopWidgetsSetSave, [this](const std::string& args) -> std::string {
+    std::string name;
+    const std::string outputKey = parseWidgetSetArgs(args, name);
+    if (name.empty()) {
+      return "error: set name required (desktop-widgets-set-save <name> [connector])\n";
+    }
+    if (outputKey.empty()) {
+      return "error: no output to save widget sets for\n";
+    }
+    if (!saveWidgetSet(name, outputKey)) {
+      return "error: could not save the widget set\n";
+    }
+    return "ok\n";
+  });
+
+  ipc.bind(noctalia::cli::msg::desktopWidgetsSetApply, [this](const std::string& args) -> std::string {
+    std::string name;
+    const std::string outputKey = parseWidgetSetArgs(args, name);
+    if (name.empty()) {
+      return "error: set name required (desktop-widgets-set-apply <name> [connector])\n";
+    }
+    const std::string setID = findWidgetSetIdForOutput(name, outputKey);
+    if (setID.empty()) {
+      return "error: no widget set with that name for this wallpaper\n";
+    }
+    applyWidgetSetForOutput(outputKey, setID);
+    return "ok\n";
+  });
+
+  ipc.bind(noctalia::cli::msg::desktopWidgetsSetDefault, [this](const std::string& args) -> std::string {
+    std::string name;
+    const std::string outputKey = parseWidgetSetArgs(args, name);
+    if (name.empty()) {
+      return "error: set name required (desktop-widgets-set-default <name> [connector])\n";
+    }
+    const std::string setID = findWidgetSetIdForOutput(name, outputKey);
+    if (setID.empty() || !m_config->setDefaultDesktopWidgetSet(setID)) {
+      return "error: no widget set with that name for this wallpaper\n";
+    }
+    return "ok\n";
+  });
+
+  ipc.bind(noctalia::cli::msg::desktopWidgetsSetDelete, [this](const std::string& args) -> std::string {
+    std::string name;
+    const std::string outputKey = parseWidgetSetArgs(args, name);
+    if (name.empty()) {
+      return "error: set name required (desktop-widgets-set-delete <name> [connector])\n";
+    }
+    const std::string setID = findWidgetSetIdForOutput(name, outputKey);
+    if (setID.empty() || !m_config->deleteDesktopWidgetSet(setID)) {
+      return "error: no widget set with that name for this wallpaper\n";
+    }
+    return "ok\n";
+  });
+}
+
+std::string DesktopWidgetsController::parseWidgetSetArgs(const std::string& args, std::string& name) const {
+  const auto tokens = StringUtils::splitWhitespace(StringUtils::trim(args));
+  if (tokens.empty()) {
+    return defaultOutputKey();
+  }
+
+  std::string outputKey;
+  std::size_t nameCount = tokens.size();
+  // The connector is the last token only when it names an output, so set names may contain spaces.
+  if (tokens.size() >= 2
+      && m_wayland != nullptr
+      && desktop_widgets::findOutputByKey(*m_wayland, tokens.back()) != nullptr) {
+    outputKey = tokens.back();
+    nameCount = tokens.size() - 1;
+  }
+  for (std::size_t i = 0; i < nameCount; ++i) {
+    if (i != 0) {
+      name += ' ';
+    }
+    name += tokens[i];
+  }
+  return outputKey.empty() ? defaultOutputKey() : outputKey;
+}
+
+std::string DesktopWidgetsController::defaultOutputKey() const {
+  if (m_wayland == nullptr) {
+    return {};
+  }
+  for (const auto& output : m_wayland->outputs()) {
+    if (output.done && output.output != nullptr && output.hasUsableGeometry()) {
+      return desktop_widgets::outputKey(output);
+    }
+  }
+  return {};
+}
+
+std::string DesktopWidgetsController::wallpaperKeyForOutput(const std::string& outputKey) const {
+  if (m_config == nullptr) {
+    return {};
+  }
+  std::string path = m_config->getWallpaperPath(outputKey);
+  if (path.empty()) {
+    path = m_config->getDefaultWallpaperPath();
+  }
+  return desktop_widgets::normalizeWidgetSetWallpaperKey(path);
+}
+
+std::string
+DesktopWidgetsController::findWidgetSetIdForOutput(const std::string& name, const std::string& outputKey) const {
+  if (m_config == nullptr) {
+    return {};
+  }
+  const auto catalog = m_config->desktopWidgetSets();
+  const auto* set = catalog.findByName(wallpaperKeyForOutput(outputKey), outputKey, name);
+  return set == nullptr ? std::string() : set->id;
+}
+
+bool DesktopWidgetsController::isShownOn(const DesktopWidgetState& widget, const std::string& outputKey) const {
+  // Match the output the widget is actually drawn on: an empty or unplugged outputName falls back
+  // to another output, so comparing the stored name would miss those widgets.
+  if (m_wayland == nullptr) {
+    return widget.outputName == outputKey;
+  }
+  const WaylandOutput* output = desktop_widgets::resolveStateOutput(*m_wayland, widget);
+  return output != nullptr && desktop_widgets::outputKey(*output) == outputKey;
+}
+
+std::vector<DesktopWidgetState> DesktopWidgetsController::widgetsShownOn(const std::string& outputKey) const {
+  std::vector<DesktopWidgetState> widgets;
+  for (const auto& widget : m_snapshot.widgets) {
+    if (isShownOn(widget, outputKey)) {
+      widgets.push_back(widget);
+    }
+  }
+  return widgets;
+}
+
+void DesktopWidgetsController::captureEditorSnapshot() {
+  // Mid-edit the editor holds the freshest placement, not m_snapshot.
+  if (isEditing() && m_editor != nullptr) {
+    m_snapshot = m_editor->snapshot();
+    normalizeSnapshot();
+  }
+}
+
+bool DesktopWidgetsController::saveWidgetSet(const std::string& name, const std::string& outputKey) {
+  if (m_config == nullptr) {
+    return false;
+  }
+  captureEditorSnapshot();
+
+  const std::string wallpaperKey = wallpaperKeyForOutput(outputKey);
+  if (wallpaperKey.empty()) {
+    return false;
+  }
+
+  desktop_widgets::WidgetSetCatalog catalog = m_config->desktopWidgetSets();
+  desktop_widgets::DesktopWidgetSet set;
+  // Saving under an existing name overwrites that set instead of creating a near-duplicate.
+  if (const auto* existing = catalog.findByName(wallpaperKey, outputKey, name)) {
+    set.id = existing->id;
+  }
+  set.name = name;
+  set.wallpaper = wallpaperKey;
+  set.outputName = outputKey;
+  set.widgets = widgetsShownOn(outputKey);
+
+  if (!m_config->saveDesktopWidgetSet(set)) {
+    return false;
+  }
+  const auto saved = m_config->desktopWidgetSets();
+  if (const auto* stored = saved.findByName(wallpaperKey, outputKey, name)) {
+    (void)m_config->setActiveDesktopWidgetSet(outputKey, stored->id);
+  }
+  return true;
+}
+
+void DesktopWidgetsController::onWallpaperChange(const std::vector<WallpaperChange>& changes) {
+  if (!m_initialized || m_config == nullptr) {
+    return;
+  }
+  // Taken even when nothing changed: a name that did not land must not leak into the next change.
+  const std::string requestedName = m_config->takePendingWidgetSetName();
+  if (changes.empty()) {
+    return;
+  }
+
+  for (const auto& change : changes) {
+    if (change.connector.empty() || change.path.empty()) {
+      continue;
+    }
+    const std::string wallpaperKey = desktop_widgets::normalizeWidgetSetWallpaperKey(change.path);
+    const auto catalog = m_config->desktopWidgetSets();
+    // A name given for all outputs only exists on some of them; the others take their default.
+    const auto* set = desktop_widgets::selectSetForApply(catalog, wallpaperKey, change.connector, requestedName);
+    if (set == nullptr && !requestedName.empty()) {
+      set = desktop_widgets::selectSetForApply(catalog, wallpaperKey, change.connector, {});
+    }
+    // No sets for this wallpaper: the widgets the user has now stay untouched, but they stop
+    // belonging to the previous wallpaper's set, so later edits must not write back into it.
+    if (set == nullptr) {
+      kLog.debug("wallpaper {} on {} has no widget set to apply", wallpaperKey, change.connector);
+      captureEditorSnapshot();
+      syncActiveWidgetSet(change.connector);
+      (void)m_config->setActiveDesktopWidgetSet(change.connector, {});
+      continue;
+    }
+    kLog.info("applying widget set \"{}\" to {}", set->name, change.connector);
+    applyWidgetSetForOutput(change.connector, set->id);
+  }
+}
+
+void DesktopWidgetsController::applyWidgetSetForOutput(const std::string& outputKey, const std::string& setID) {
+  if (m_config == nullptr || setID.empty()) {
+    return;
+  }
+  const auto catalog = m_config->desktopWidgetSets();
+  const auto* set = catalog.find(setID);
+  if (set == nullptr) {
+    return;
+  }
+
+  captureEditorSnapshot();
+  // Fold pending edits into the set being replaced before its widgets leave the screen.
+  syncActiveWidgetSet(outputKey);
+
+  std::vector<DesktopWidgetState> widgets;
+  widgets.reserve(m_snapshot.widgets.size() + set->widgets.size());
+  for (auto& widget : m_snapshot.widgets) {
+    if (!isShownOn(widget, outputKey)) {
+      widgets.push_back(std::move(widget));
+    }
+  }
+  for (const auto& widget : set->widgets) {
+    DesktopWidgetState rebound = widget;
+    rebound.outputName = outputKey;
+    widgets.push_back(std::move(rebound));
+  }
+  m_snapshot.widgets = std::move(widgets);
+  // Sets saved from the same initial layout share widget ids; normalizeSnapshot renames later
+  // duplicates so the two outputs keep independent widgets.
+  normalizeSnapshot();
+  // A set keeps the output size it was captured against, so scale its positions onto the output
+  // it lands on (a set imported from another machine or a resized monitor).
+  (void)m_placementMapper.remapForOutputChange(m_wayland->outputs(), m_snapshot.widgets);
+  // Save the snapshot before any other override write: every commit reloads the config, and the
+  // reload handler re-reads m_snapshot from it, which would drop the set just swapped in.
+  const std::string appliedID = set->id;
+  saveSnapshotToConfig();
+  (void)m_config->setActiveDesktopWidgetSet(outputKey, appliedID);
+
+  if (isEditing() && m_editor != nullptr) {
+    m_editor->replaceSnapshot(m_snapshot);
+    m_editor->requestLayout();
+  } else if (m_host != nullptr) {
+    m_host->show(m_snapshot);
+  }
+}
+
+void DesktopWidgetsController::syncActiveWidgetSet(const std::string& outputKey) {
+  if (m_config == nullptr) {
+    return;
+  }
+  const auto catalog = m_config->desktopWidgetSets();
+  // The active marker is cleared whenever the output's widgets stop belonging to a set (see
+  // onWallpaperChange), so the marker alone says where edits go. Checking the wallpaper here would
+  // miss the write-back on a wallpaper change, where the config already holds the new path.
+  const auto* set = catalog.find(catalog.activeIdFor(outputKey));
+  if (set == nullptr) {
+    return;
+  }
+  desktop_widgets::DesktopWidgetSet updated = *set;
+  updated.outputName = outputKey;
+  updated.widgets = widgetsShownOn(outputKey);
+  (void)m_config->saveDesktopWidgetSet(updated);
 }
 
 bool DesktopWidgetsController::runtimeWantsVisible() const noexcept {
@@ -360,6 +663,11 @@ void DesktopWidgetsController::exitEdit() {
   m_host->show(m_snapshot);
   (void)m_editor->close();
   saveSnapshotToConfig();
+  // The edit session ends: fold everything the user touched into the sets that were live. Walk the
+  // active markers rather than the widgets so an output whose widgets were all deleted still syncs.
+  for (const auto& [outputKey, setID] : m_config->desktopWidgetSets().active) {
+    syncActiveWidgetSet(outputKey);
+  }
   applyVisibility();
   if (m_onExitEdit) {
     m_onExitEdit();

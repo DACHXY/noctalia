@@ -2,8 +2,10 @@
 #include "config/config_merge.h"
 #include "config/config_service.h"
 #include "config/config_validate.h"
+#include "config/desktop_widget_set.h"
 #include "config/schema/ranges.h"
 #include "config/widget_config.h"
+#include "config/widget_placement_toml.h"
 #include "core/files/resource_paths.h"
 #include "core/input/key_chord.h"
 #include "core/log.h"
@@ -1195,15 +1197,7 @@ void ConfigService::setPluginsAutoUpdate(PluginAutoUpdateMode mode) {
 
 namespace {
 
-  void writeWidgetsPlacementToTable(
-      toml::table& sectionTbl, const DesktopWidgetsGridState& grid, const std::vector<DesktopWidgetState>& widgets
-  ) {
-    toml::table gridTable;
-    gridTable.insert_or_assign("visible", grid.visible);
-    gridTable.insert_or_assign("cell_size", static_cast<std::int64_t>(grid.cellSize));
-    gridTable.insert_or_assign("major_interval", static_cast<std::int64_t>(grid.majorInterval));
-    sectionTbl.insert_or_assign("grid", std::move(gridTable));
-
+  void writeWidgetSection(toml::table& sectionTbl, const std::vector<DesktopWidgetState>& widgets) {
     toml::table widgetTable;
     toml::array widgetOrder;
     for (const auto& widget : widgets) {
@@ -1217,7 +1211,28 @@ namespace {
     sectionTbl.insert_or_assign("widget_order", std::move(widgetOrder));
   }
 
+  void writeWidgetsPlacementToTable(
+      toml::table& sectionTbl, const DesktopWidgetsGridState& grid, const std::vector<DesktopWidgetState>& widgets
+  ) {
+    toml::table gridTable;
+    gridTable.insert_or_assign("visible", grid.visible);
+    gridTable.insert_or_assign("cell_size", static_cast<std::int64_t>(grid.cellSize));
+    gridTable.insert_or_assign("major_interval", static_cast<std::int64_t>(grid.majorInterval));
+    sectionTbl.insert_or_assign("grid", std::move(gridTable));
+    writeWidgetSection(sectionTbl, widgets);
+  }
+
 } // namespace
+
+namespace noctalia::config {
+
+  toml::table desktopWidgetStateTable(const DesktopWidgetState& widget) { return desktopWidgetTable(widget); }
+
+  void writeDesktopWidgetPlacement(toml::table& sectionTbl, const std::vector<DesktopWidgetState>& widgets) {
+    writeWidgetSection(sectionTbl, widgets);
+  }
+
+} // namespace noctalia::config
 
 bool ConfigService::setDesktopWidgetsState(const DesktopWidgetsConfig& desktopWidgets) {
   if (m_overridesPath.empty()) {
@@ -1253,6 +1268,161 @@ bool ConfigService::setLockscreenWidgetsState(const LockscreenWidgetsConfig& loc
 
   return commitOverrideTable(std::move(next), nullptr);
 }
+
+namespace {
+
+  toml::table widgetSetSectionTable(const desktop_widgets::WidgetSetCatalog& catalog) {
+    toml::table sets;
+    for (const auto& set : catalog.sets) {
+      toml::table setTable;
+      setTable.insert_or_assign("name", set.name);
+      setTable.insert_or_assign("wallpaper", set.wallpaper);
+      setTable.insert_or_assign("output", set.outputName);
+      noctalia::config::writeDesktopWidgetPlacement(setTable, set.widgets);
+      sets.insert_or_assign(set.id, std::move(setTable));
+    }
+
+    toml::table defaults;
+    for (const auto& [wallpaper, id] : catalog.defaults) {
+      defaults.insert_or_assign(wallpaper, id);
+    }
+
+    toml::table active;
+    for (const auto& [output, id] : catalog.active) {
+      active.insert_or_assign(output, id);
+    }
+
+    toml::table section;
+    section.insert_or_assign("sets", std::move(sets));
+    section.insert_or_assign("defaults", std::move(defaults));
+    section.insert_or_assign("active", std::move(active));
+    return section;
+  }
+
+} // namespace
+
+desktop_widgets::WidgetSetCatalog ConfigService::desktopWidgetSets() const {
+  desktop_widgets::WidgetSetCatalog catalog;
+  const auto* section = m_overridesTable["desktop_widget_sets"].as_table();
+  if (section == nullptr) {
+    return catalog;
+  }
+
+  if (const auto* setsTable = (*section)["sets"].as_table()) {
+    DesktopWidgetsGridState ignoredGrid;
+    for (const auto& [idNode, setNode] : *setsTable) {
+      const auto* setTable = setNode.as_table();
+      if (setTable == nullptr) {
+        continue;
+      }
+      desktop_widgets::DesktopWidgetSet set;
+      set.id = idNode.str();
+      set.name = (*setTable)["name"].value_or(std::string{});
+      set.wallpaper = (*setTable)["wallpaper"].value_or(std::string{});
+      set.outputName = (*setTable)["output"].value_or(std::string{});
+      if (set.id.empty() || set.name.empty() || set.wallpaper.empty()) {
+        continue;
+      }
+      noctalia::config::readDesktopWidgetPlacement(*setTable, ignoredGrid, set.widgets, "desktop_widget_sets");
+      catalog.sets.push_back(std::move(set));
+    }
+  }
+  // TOML tables are key-ordered; the ids are zero-padded counters, so this is creation order.
+  std::ranges::sort(catalog.sets, {}, &desktop_widgets::DesktopWidgetSet::id);
+
+  if (const auto* defaults = (*section)["defaults"].as_table()) {
+    for (const auto& [wallpaper, idNode] : *defaults) {
+      if (const auto id = idNode.value<std::string>()) {
+        catalog.defaults.emplace(wallpaper.str(), *id);
+      }
+    }
+  }
+  if (const auto* active = (*section)["active"].as_table()) {
+    for (const auto& [output, idNode] : *active) {
+      if (const auto id = idNode.value<std::string>()) {
+        catalog.active.emplace(output.str(), *id);
+      }
+    }
+  }
+  return catalog;
+}
+
+bool ConfigService::saveDesktopWidgetSet(const desktop_widgets::DesktopWidgetSet& set) {
+  if (m_overridesPath.empty() || set.name.empty() || set.wallpaper.empty()) {
+    return false;
+  }
+
+  desktop_widgets::WidgetSetCatalog catalog = desktopWidgetSets();
+  desktop_widgets::DesktopWidgetSet stored = set;
+  stored.wallpaper = desktop_widgets::normalizeWidgetSetWallpaperKey(stored.wallpaper);
+  if (stored.id.empty()) {
+    if (catalog.findByName(stored.wallpaper, stored.outputName, stored.name) != nullptr) {
+      return false;
+    }
+    stored.id = catalog.nextId();
+  }
+
+  const std::string savedId = stored.id;
+  const auto it = std::ranges::find(catalog.sets, savedId, &desktop_widgets::DesktopWidgetSet::id);
+  if (it == catalog.sets.end()) {
+    catalog.sets.push_back(std::move(stored));
+  } else {
+    *it = std::move(stored);
+  }
+  // No explicit default write: defaultIdFor() treats the first set of a scope as its default.
+
+  toml::table next = m_overridesTable;
+  next.insert_or_assign("desktop_widget_sets", widgetSetSectionTable(catalog));
+  return commitOverrideTable(std::move(next), nullptr);
+}
+
+bool ConfigService::deleteDesktopWidgetSet(std::string_view id) {
+  desktop_widgets::WidgetSetCatalog catalog = desktopWidgetSets();
+  if (!desktop_widgets::eraseWidgetSet(catalog, id)) {
+    return false;
+  }
+
+  toml::table next = m_overridesTable;
+  next.insert_or_assign("desktop_widget_sets", widgetSetSectionTable(catalog));
+  return commitOverrideTable(std::move(next), nullptr);
+}
+
+bool ConfigService::setDefaultDesktopWidgetSet(std::string_view id) {
+  desktop_widgets::WidgetSetCatalog catalog = desktopWidgetSets();
+  if (!desktop_widgets::setDefaultWidgetSet(catalog, id)) {
+    return false;
+  }
+
+  toml::table next = m_overridesTable;
+  next.insert_or_assign("desktop_widget_sets", widgetSetSectionTable(catalog));
+  return commitOverrideTable(std::move(next), nullptr);
+}
+
+bool ConfigService::setActiveDesktopWidgetSet(std::string_view outputKey, std::string_view id) {
+  if (outputKey.empty()) {
+    return false;
+  }
+
+  desktop_widgets::WidgetSetCatalog catalog = desktopWidgetSets();
+  if (id.empty()) {
+    if (catalog.active.erase(std::string(outputKey)) == 0) {
+      return true;
+    }
+  } else {
+    if (catalog.find(id) == nullptr) {
+      return false;
+    }
+    catalog.active.insert_or_assign(std::string(outputKey), std::string(id));
+  }
+
+  toml::table next = m_overridesTable;
+  next.insert_or_assign("desktop_widget_sets", widgetSetSectionTable(catalog));
+  return commitOverrideTable(std::move(next), nullptr);
+}
+
+void ConfigService::setPendingWidgetSetName(std::string name) { m_pendingWidgetSetName = std::move(name); }
+
+std::string ConfigService::takePendingWidgetSetName() { return std::exchange(m_pendingWidgetSetName, std::string()); }
 
 bool ConfigService::markSetupWizardCompleted() {
   if (m_setupMarkerPath.empty()) {
