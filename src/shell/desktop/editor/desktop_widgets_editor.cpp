@@ -55,8 +55,12 @@ namespace {
   const ColorSpec kShadowColor = colorSpecFromRole(ColorRole::Shadow, 0.45F);
   constexpr float kRotatePadding = 14.0F;
   constexpr float kHandleSize = 14.0F;
+  constexpr float kRotateKnobSize = 16.0F;
+  // Distance from the rotation ring to the knob's near edge.
+  constexpr float kRotateKnobGap = 18.0F;
+  constexpr float kRotateKnobStemWidth = 2.0F;
   constexpr float kDisabledWidgetOpacity = 0.25F;
-  constexpr float kRotationSnap = std::numbers::pi_v<float> / 12.0F;
+  constexpr float kRotationSnap = std::numbers::pi_v<float> / 360.0F; // 0.5°
   constexpr float kSnapGuideThresholdMin = 6.0F;
   constexpr float kSnapGuideThresholdMax = 18.0F;
   constexpr float kCenterGuideThickness = 3.0F;
@@ -653,6 +657,10 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
   surface.selectionBorder = nullptr;
   surface.rotationRing = nullptr;
   surface.rotateArea = nullptr;
+  surface.rotationKnob = nullptr;
+  surface.rotationKnobShadow = nullptr;
+  surface.rotationKnobStem = nullptr;
+  surface.rotateKnobArea = nullptr;
   surface.scaleHandles.fill(nullptr);
   surface.scaleAreas.fill(nullptr);
   surface.lassoBox = nullptr;
@@ -959,8 +967,8 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
       surface.rotationRing = ring.get();
       surface.selectionFrameTransform->addChild(std::move(ring));
 
-      // Drag rotates, Ctrl+drag tilts, Ctrl+right-click resets tilt (so the ring has to see the
-      // secondary button too).
+      // The ring and the knob share one behaviour: drag rotates, Ctrl+drag tilts, Ctrl+right-click
+      // resets tilt (so both have to see the secondary button too).
       const auto attachRotateHandlers = [this](InputArea& area) {
         area.setAcceptedButtons(InputArea::buttonMask({BTN_LEFT, BTN_RIGHT}));
         InputArea* areaPtr = &area;
@@ -1009,6 +1017,40 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
       attachRotateHandlers(*rotateArea);
       surface.rotateArea = rotateArea.get();
       surface.selectionFrameTransform->addChild(std::move(rotateArea));
+
+      // A round knob above the top edge: a much easier grab target than the thin ring. It lives in
+      // the selection frame, so it rotates and tilts together with the widget.
+      auto knobStem = ui::box({.fill = colorSpecFromRole(ColorRole::Primary)});
+      knobStem->setZIndex(2);
+      knobStem->setHitTestVisible(false);
+      surface.rotationKnobStem = knobStem.get();
+      surface.selectionFrameTransform->addChild(std::move(knobStem));
+
+      auto knobShadow = ui::box({
+          .fill = clearColorSpec(),
+          .radius = kRotateKnobSize * 0.5F + kShadowExpand,
+          .configure = [](Box& box) { box.setBorder(kShadowColor, kShadowExpand); },
+      });
+      knobShadow->setZIndex(2);
+      knobShadow->setHitTestVisible(false);
+      surface.rotationKnobShadow = knobShadow.get();
+      surface.selectionFrameTransform->addChild(std::move(knobShadow));
+
+      auto knob = ui::box({
+          .fill = colorSpecFromRole(ColorRole::Surface),
+          .radius = kRotateKnobSize * 0.5F,
+          .configure = [](Box& box) { box.setBorder(colorSpecFromRole(ColorRole::Primary), kSelectionStroke); },
+      });
+      knob->setZIndex(3);
+      knob->setHitTestVisible(false);
+      surface.rotationKnob = knob.get();
+      surface.selectionFrameTransform->addChild(std::move(knob));
+
+      auto knobArea = ui::inputArea({});
+      knobArea->setZIndex(4);
+      attachRotateHandlers(*knobArea);
+      surface.rotateKnobArea = knobArea.get();
+      surface.selectionFrameTransform->addChild(std::move(knobArea));
     }
 
     root->addChild(std::move(selectionFrameTransform));
@@ -1454,6 +1496,30 @@ void DesktopWidgetsEditor::updateSelectionVisuals(OverlaySurface& surface) {
 
     surface.rotateArea->setPosition(-kRotatePadding, -kRotatePadding);
     surface.rotateArea->setFrameSize(width + kRotatePadding * 2.0F, height + kRotatePadding * 2.0F);
+
+    // Knob centred above the top edge, joined to the ring by a short stem.
+    const float knobCenterX = width * 0.5F;
+    const float knobBottom = -kRotatePadding - kRotateKnobGap;
+    const float knobCenterY = knobBottom - kRotateKnobSize * 0.5F;
+    if (surface.rotationKnobStem != nullptr) {
+      surface.rotationKnobStem->setPosition(knobCenterX - kRotateKnobStemWidth * 0.5F, knobBottom);
+      surface.rotationKnobStem->setFrameSize(kRotateKnobStemWidth, kRotateKnobGap);
+    }
+    if (surface.rotationKnobShadow != nullptr) {
+      const float shadowSize = kRotateKnobSize + kShadowExpand * 2.0F;
+      surface.rotationKnobShadow->setPosition(knobCenterX - shadowSize * 0.5F, knobCenterY - shadowSize * 0.5F);
+      surface.rotationKnobShadow->setFrameSize(shadowSize, shadowSize);
+    }
+    if (surface.rotationKnob != nullptr) {
+      surface.rotationKnob->setPosition(knobCenterX - kRotateKnobSize * 0.5F, knobCenterY - kRotateKnobSize * 0.5F);
+      surface.rotationKnob->setFrameSize(kRotateKnobSize, kRotateKnobSize);
+    }
+    if (surface.rotateKnobArea != nullptr) {
+      // Hit target is twice the drawn knob so it is easy to grab.
+      const float areaSize = kRotateKnobSize * 2.0F;
+      surface.rotateKnobArea->setPosition(knobCenterX - areaSize * 0.5F, knobCenterY - areaSize * 0.5F);
+      surface.rotateKnobArea->setFrameSize(areaSize, areaSize);
+    }
   }
 
   if (surface.selectionBorderShadow != nullptr) {

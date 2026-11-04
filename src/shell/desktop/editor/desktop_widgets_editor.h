@@ -113,6 +113,10 @@ private:
     Box* rotationRing = nullptr;
     Box* rotationRingShadow = nullptr;
     InputArea* rotateArea = nullptr;
+    Box* rotationKnob = nullptr;
+    Box* rotationKnobShadow = nullptr;
+    Box* rotationKnobStem = nullptr;
+    InputArea* rotateKnobArea = nullptr;
     std::array<Box*, 4> scaleHandles{};
     std::array<Box*, 4> scaleHandleShadows{};
     std::array<InputArea*, 4> scaleAreas{};

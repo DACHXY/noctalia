@@ -59,9 +59,9 @@ Widget previews are non-interactive in edit mode. Clicking anywhere within a wid
 | Drag empty desktop                         | Lasso-select widgets whose bounds intersect the rectangle         |
 | `Ctrl` + click widget                      | Add/remove that widget from the selection                         |
 | `Ctrl` + lasso                             | Add intersecting widgets to the current selection                 |
-| Drag outer selection ring                  | Rotate (rotates and orbits the whole multi-selection)             |
-| `Ctrl` + drag outer selection ring         | Tilt (tilts each selected widget in place around its own centre)  |
-| `Ctrl` + right-click outer selection ring  | Reset tilt to 0 (rotation is kept)                                |
+| Drag rotation knob or outer selection ring | Rotate (rotates and orbits the whole multi-selection)             |
+| `Ctrl` + drag rotation knob or ring        | Tilt (tilts each selected widget in place around its own centre)  |
+| `Ctrl` + right-click rotation knob or ring | Reset tilt to 0 (rotation is kept)                                |
 | Drag corner handles                        | Resize (scales the whole multi-selection about the resize anchor) |
 | Drag toolbar handle                        | Reposition the editor toolbar on that output                      |
 | `G`                                        | Toggle snap grid                                                  |
@@ -73,7 +73,9 @@ Widget previews are non-interactive in edit mode. Clicking anywhere within a wid
 
 When the snap grid is active, moving a widget snaps the nearest outer edge or center line to the grid, screen edges, and nearby widgets. Resizing keeps the opposite edge anchored and snaps the dragged edge to the same guides, with a horizontal bias for corner drags so matching widget widths is easier.
 
-Tilt is edited with the outer selection ring: hold `Ctrl` and drag. Horizontal travel tilts around the vertical axis (`tilt_y`), vertical travel tilts around the horizontal axis (`tilt_x`), and the edge under the pointer follows the pointer (dragging down pushes the top edge away from you). The drag is measured in the widget's own frame, so it stays oriented correctly on a rotated widget. Tilt covers 80° per 400 px of travel, snaps to 0.5° steps while the snap grid is active, and is clamped to ±80°.
+The round knob above the selected widget is the easiest rotation grab target; the thin outer ring works the same way. Rotation snaps to 0.5° steps while the snap grid is active.
+
+Tilt is edited with the same knob or ring: hold `Ctrl` and drag. Horizontal travel tilts around the vertical axis (`tilt_y`), vertical travel tilts around the horizontal axis (`tilt_x`), and the edge under the pointer follows the pointer (dragging down pushes the top edge away from you). The drag is measured in the widget's own frame, so it stays oriented correctly on a rotated widget. Tilt covers 80° per 400 px of travel, snaps to 0.5° steps while the snap grid is active, and is clamped to ±80°.
 
 Primary-colored center guides are always shown in edit mode. Dragging a widget snaps its center to the monitor center when nearby, even if the snap grid is hidden or temporarily disabled with `Shift`.
 
