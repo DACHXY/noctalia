@@ -678,6 +678,24 @@ namespace {
     return 1;
   }
 
+  // activeWidgetSet(connector) -> { id, name } or nil when no widget set is active on the output.
+  int luau_activeWidgetSet(lua_State* L) {
+    size_t len = 0;
+    const char* outputName = luaL_checklstring(L, 1, &len);
+    auto* host = hostForState(L);
+    const auto set = host != nullptr ? host->api().activeWidgetSet(std::string(outputName, len)) : std::nullopt;
+    if (!set.has_value()) {
+      lua_pushnil(L);
+      return 1;
+    }
+    lua_createtable(L, 0, 2);
+    lua_pushlstring(L, set->id.data(), set->id.size());
+    lua_setfield(L, -2, "id");
+    lua_pushlstring(L, set->name.data(), set->name.size());
+    lua_setfield(L, -2, "name");
+    return 1;
+  }
+
   int luau_setWallpaperMask(lua_State* L) {
     size_t outputLen = 0;
     const char* outputName = luaL_checklstring(L, 1, &outputLen);
@@ -2138,6 +2156,7 @@ namespace {
       {"setWallpaperEnabled", luau_setWallpaperEnabled},
       {"setWallpaper", luau_setWallpaper},
       {"wallpaperPath", luau_wallpaperPath},
+      {"activeWidgetSet", luau_activeWidgetSet},
       {"setWallpaperMask", luau_setWallpaperMask},
       {"togglePanel", luau_togglePanel},
       {"openSettings", luau_openSettings},

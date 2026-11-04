@@ -256,5 +256,11 @@
     "noctaliaVersion": null,
     "feature": "umbriel-action",
     "introduced": "`noctalia.umbriel.action` for sending typed actions straight to the Umbriel IPC socket, without spawning `umbriel msg`."
+  },
+  {
+    "level": 46,
+    "noctaliaVersion": null,
+    "feature": "active-widget-set",
+    "introduced": "`noctalia.activeWidgetSet(connector)` returns the active desktop widget set (`{ id, name }`) of an output, or `nil` when none is active."
   }
 ]

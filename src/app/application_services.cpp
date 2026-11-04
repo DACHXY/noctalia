@@ -634,6 +634,24 @@ void Application::initStyleThemeAndWayland() {
     m_scriptApi.setDateFormat(m_configService.config().shell.dateFormat);
   };
 
+  // Publish the active desktop widget set per output (noctalia.activeWidgetSet()). Refreshed with
+  // the output snapshot, and separately on every config reload: setActiveDesktopWidgetSet() writes
+  // settings.toml and reloads, so the output list alone does not see a set switch.
+  auto syncScriptApiWidgetSets = [this] {
+    std::unordered_map<std::string, scripting::ScriptActiveWidgetSet> activeWidgetSets;
+    const auto catalog = m_configService.desktopWidgetSets();
+    for (const auto& [outputKey, setId] : catalog.active) {
+      if (const auto* set = catalog.find(setId); set != nullptr) {
+        activeWidgetSets.insert_or_assign(
+            outputKey, scripting::ScriptActiveWidgetSet{.id = set->id, .name = set->name}
+        );
+      }
+    }
+    m_scriptApi.setActiveWidgetSets(std::move(activeWidgetSets));
+  };
+  syncScriptApiWidgetSets();
+  m_configService.addReloadCallback(syncScriptApiWidgetSets, "script-api-widget-sets");
+
   // Publish the connected outputs to plugin scripts (noctalia.outputs()), refreshed on every
   // output change so the worker-thread binding reads a race-free copy.
   m_syncScriptApiOutputs = [this] {

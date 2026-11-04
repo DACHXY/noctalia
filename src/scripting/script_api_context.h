@@ -31,6 +31,12 @@ namespace scripting {
     bool focused = false;
   };
 
+  // The active desktop widget set of one output, as exposed via noctalia.activeWidgetSet().
+  struct ScriptActiveWidgetSet {
+    std::string id;
+    std::string name;
+  };
+
   // A calendar event as exposed to plugin scripts via noctalia.calendarEvents().
   // Mirrors CalendarEvent, but with wall-clock milliseconds instead of a chrono time_point so the
   // scripting layer stays off the calendar layer's headers.
@@ -87,6 +93,17 @@ namespace scripting {
       std::scoped_lock lock(m_mutex);
       const auto it = m_wallpaperPaths.find(outputName);
       return it != m_wallpaperPaths.end() ? std::optional<std::string>{it->second} : std::nullopt;
+    }
+
+    void setActiveWidgetSets(std::unordered_map<std::string, ScriptActiveWidgetSet> sets) {
+      std::scoped_lock lock(m_mutex);
+      m_activeWidgetSets = std::move(sets);
+    }
+
+    [[nodiscard]] std::optional<ScriptActiveWidgetSet> activeWidgetSet(const std::string& outputName) const {
+      std::scoped_lock lock(m_mutex);
+      const auto it = m_activeWidgetSets.find(outputName);
+      return it != m_activeWidgetSets.end() ? std::optional<ScriptActiveWidgetSet>{it->second} : std::nullopt;
     }
 
     // Output snapshot — refreshed on the main thread, copied out under lock so that
@@ -339,6 +356,7 @@ namespace scripting {
     std::string m_dateFormat;
     std::vector<ScriptOutputInfo> m_outputs;
     std::unordered_map<std::string, std::string> m_wallpaperPaths;
+    std::unordered_map<std::string, ScriptActiveWidgetSet> m_activeWidgetSets;
     std::optional<std::string> m_clipboardText;
     std::shared_ptr<const std::vector<ScriptCalendarEvent>> m_calendarEvents;
     std::function<void(const std::string&, bool)> m_wallpaperEnabledHook;

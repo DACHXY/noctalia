@@ -1134,6 +1134,7 @@ int main() {
   std::vector<WallpaperMaskRequest> wallpaperMaskRequests;
   std::vector<std::uint64_t> clearedWallpaperMaskOwners;
   api.setWallpaperPaths({{"DP-1", "/wallpapers/current.png"}});
+  api.setActiveWidgetSets({{"DP-1", {.id = "widget-set-0001", .name = "Focus"}}});
   api.setConfigSnapshot(std::make_shared<const toml::table>(toml::parse("[shell]\noffline_mode = true")));
   api.setWallpaperMaskHook([&](std::uint64_t ownerId, const std::string& outputName, const std::string& path,
                                const std::string& wallpaperPath) {
@@ -1153,6 +1154,9 @@ int main() {
         "assert(noctalia.getSetting('shell.offline_mode'))\n"
         "assert(noctalia.wallpaperPath('DP-1') == '/wallpapers/current.png')\n"
         "assert(noctalia.wallpaperPath('missing') == nil)\n"
+        "local set = noctalia.activeWidgetSet('DP-1')\n"
+        "assert(set ~= nil and set.id == 'widget-set-0001' and set.name == 'Focus')\n"
+        "assert(noctalia.activeWidgetSet('missing') == nil)\n"
         "noctalia.setWallpaperMask('DP-1', {\n"
         "  path = 'cache/mask.png',\n"
         "  wallpaperPath = '/wallpapers/current.png',\n"
